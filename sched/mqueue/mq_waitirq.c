@@ -90,11 +90,13 @@ void nxmq_wait_irq(FAR struct tcb_s *wtcb, int errcode)
       if (wtcb->task_state == TSTATE_WAIT_MQNOTEMPTY)
         {
           DEBUGASSERT(msgq->nwaitnotempty > 0);
+          dq_rem((FAR dq_entry_t *)wtcb, MQ_WNE_TLIST(msgq));
           msgq->nwaitnotempty--;
         }
       else
         {
           DEBUGASSERT(msgq->nwaitnotfull > 0);
+          dq_rem((FAR dq_entry_t *)wtcb, MQ_WNF_TLIST(msgq));
           msgq->nwaitnotfull--;
         }
 

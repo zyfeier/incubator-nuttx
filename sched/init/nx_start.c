@@ -138,22 +138,6 @@ dq_queue_t g_pendingtasks;
 
 dq_queue_t g_waitingforsignal;
 
-#ifndef CONFIG_DISABLE_MQUEUE
-/* This is the list of all tasks that are blocked waiting for a message
- * queue to become non-empty.
- */
-
-dq_queue_t g_waitingformqnotempty;
-#endif
-
-#ifndef CONFIG_DISABLE_MQUEUE
-/* This is the list of all tasks that are blocked waiting for a message
- * queue to become non-full.
- */
-
-dq_queue_t g_waitingformqnotfull;
-#endif
-
 #ifdef CONFIG_PAGING
 /* This is the list of all tasks that are blocking waiting for a page fill */
 
@@ -243,11 +227,11 @@ const struct tasklist_s g_tasklisttable[NUM_TASK_STATES] =
 #ifndef CONFIG_DISABLE_MQUEUE
   ,
   {                                              /* TSTATE_WAIT_MQNOTEMPTY */
-    &g_waitingformqnotempty,
+    NULL,
     TLIST_ATTR_PRIORITIZED
   },
   {                                              /* TSTATE_WAIT_MQNOTFULL */
-    &g_waitingformqnotfull,
+    NULL,
     TLIST_ATTR_PRIORITIZED
   }
 #endif

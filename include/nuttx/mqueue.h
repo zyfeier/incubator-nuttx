@@ -79,6 +79,9 @@
 #  define _MQ_TIMEDRECEIVE(d,m,l,p,t) mq_timedreceive(d,m,l,p,t)
 #endif
 
+# define MQ_WNE_TLIST(mq)             (&((mq)->waitingformqnotempty))
+# define MQ_WNF_TLIST(mq)             (&((mq)->waitingformqnotfull))
+
 /****************************************************************************
  * Public Type Declarations
  ****************************************************************************/
@@ -103,6 +106,8 @@ struct mqueue_inode_s
   struct sigevent ntevent;    /* Notification description */
   struct sigwork_s ntwork;    /* Notification work */
 #endif
+  dq_queue_t waitingformqnotempty;
+  dq_queue_t waitingformqnotfull;
   FAR struct pollfd *fds[CONFIG_FS_MQUEUE_NPOLLWAITERS];
 };
 

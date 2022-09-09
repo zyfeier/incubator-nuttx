@@ -285,11 +285,7 @@ ssize_t nxmq_do_receive(FAR struct mqueue_inode_s *msgq,
        * messages can be sent from interrupt handlers.
        */
 
-      for (btcb = (FAR struct tcb_s *)g_waitingformqnotfull.head;
-           btcb && btcb->msgwaitq != msgq;
-           btcb = btcb->flink)
-        {
-        }
+      btcb = (FAR struct tcb_s *)dq_remfirst(MQ_WNF_TLIST(msgq));
 
       /* If one was found, unblock it.  NOTE:  There is a race
        * condition here:  the queue might be full again by the

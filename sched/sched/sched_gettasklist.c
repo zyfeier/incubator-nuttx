@@ -25,6 +25,7 @@
 #include <nuttx/config.h>
 
 #include <semaphore.h>
+#include <nuttx/mqueue.h>
 
 #include "sched/sched.h"
 
@@ -58,6 +59,14 @@ dq_queue_t *nxsched_get_tasklist(FAR struct tcb_s *btcb,
   if (task_state == TSTATE_WAIT_SEM && btcb->waitsem)
     {
       return SEM_WAIT_TLIST(btcb->waitsem);
+    }
+  else if (task_state == TSTATE_WAIT_MQNOTEMPTY && btcb->msgwaitq)
+    {
+      return MQ_WNE_TLIST(btcb->msgwaitq);
+    }
+  else if (task_state == TSTATE_WAIT_MQNOTFULL && btcb->msgwaitq)
+    {
+      return MQ_WNF_TLIST(btcb->msgwaitq);
     }
   else
     {

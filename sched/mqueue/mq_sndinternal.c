@@ -395,11 +395,7 @@ int nxmq_do_send(FAR struct mqueue_inode_s *msgq,
        * in this list
        */
 
-      for (btcb = (FAR struct tcb_s *)g_waitingformqnotempty.head;
-           btcb && btcb->msgwaitq != msgq;
-           btcb = btcb->flink)
-        {
-        }
+      btcb = (FAR struct tcb_s *)dq_remfirst(MQ_WNE_TLIST(msgq));
 
       /* If one was found, unblock it */
 
