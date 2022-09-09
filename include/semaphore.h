@@ -31,6 +31,8 @@
 #include <limits.h>
 #include <time.h>
 
+#include "queue.h"
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -93,12 +95,16 @@ struct semholder_s
 #endif
 #endif /* CONFIG_PRIORITY_INHERITANCE */
 
+#define SEMWAITLIST_INITIALIZER {NULL, NULL}
+
 /* This is the generic semaphore structure. */
 
 struct sem_s
 {
   volatile int16_t semcount;     /* >0 -> Num counts available */
                                  /* <0 -> Num tasks waiting for semaphore */
+
+  dq_queue_t waitlist;
 
   /* If priority inheritance is enabled, then we have to keep track of which
    * tasks hold references to the semaphore.
@@ -121,15 +127,17 @@ typedef struct sem_s sem_t;
 #ifdef CONFIG_PRIORITY_INHERITANCE
 # if CONFIG_SEM_PREALLOCHOLDERS > 0
 #  define SEM_INITIALIZER(c) \
-    {(c), 0, NULL}               /* semcount, flags, hhead */
+    {(c), SEMWAITLIST_INITIALIZER, 0, NULL}                                           /* semcount, waitlist, flags, hhead */
 # else
 #  define SEM_INITIALIZER(c) \
-    {(c), 0, {SEMHOLDER_INITIALIZER, SEMHOLDER_INITIALIZER}} /* semcount, flags, holder[2] */
+    {(c), SEMWAITLIST_INITIALIZER, 0, {SEMHOLDER_INITIALIZER, SEMHOLDER_INITIALIZER}} /* semcount, waitlist, flags, holder[2] */
 # endif
 #else
 #  define SEM_INITIALIZER(c) \
-    {(c)}                        /* semcount */
+    {(c), SEMWAITLIST_INITIALIZER}  /* semcount, waitlist*/
 #endif
+
+# define SEM_WAIT_TLIST(sem)     (&((sem)->waitlist))
 
 /****************************************************************************
  * Public Data

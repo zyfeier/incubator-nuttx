@@ -97,6 +97,10 @@ void nxsem_wait_irq(FAR struct tcb_s *wtcb, int errcode)
 
       sem->semcount++;
 
+      /* Remove TCB in semaphore waiting list before set waitsem to null */
+
+      dq_rem((FAR dq_entry_t *)wtcb, SEM_WAIT_TLIST(sem));
+
       /* Indicate that the semaphore wait is over. */
 
       wtcb->waitsem = NULL;

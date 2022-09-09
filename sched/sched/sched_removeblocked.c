@@ -55,6 +55,7 @@
 void nxsched_remove_blocked(FAR struct tcb_s *btcb)
 {
   tstate_t task_state = btcb->task_state;
+  FAR dq_queue_t *list;
 
   /* Make sure the TCB is in a valid blocked state */
 
@@ -65,7 +66,11 @@ void nxsched_remove_blocked(FAR struct tcb_s *btcb)
    * with this state
    */
 
-  dq_rem((FAR dq_entry_t *)btcb, TLIST_BLOCKED(task_state));
+  list = TLIST_BLOCKED(btcb, task_state);
+  if (list)
+    {
+      dq_rem((FAR dq_entry_t *)btcb, list);
+    }
 
   /* Make sure the TCB's state corresponds to not being in
    * any list

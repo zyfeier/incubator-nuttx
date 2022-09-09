@@ -1,5 +1,5 @@
 /****************************************************************************
- * sched/sched/sched_addblocked.c
+ * sched/sched/sched_gettasklist.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -24,8 +24,7 @@
 
 #include <nuttx/config.h>
 
-#include <queue.h>
-#include <assert.h>
+#include <semaphore.h>
 
 #include "sched/sched.h"
 
@@ -34,7 +33,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: nxsched_add_blocked
+ * Name: nxsched_get_tasklist
  *
  * Description:
  *   This function adds a TCB to one of the blocked state task lists as
@@ -53,35 +52,15 @@
  *
  ****************************************************************************/
 
-void nxsched_add_blocked(FAR struct tcb_s *btcb, tstate_t task_state)
+dq_queue_t *nxsched_get_tasklist(FAR struct tcb_s *btcb,
+                                 tstate_t task_state)
 {
-  FAR dq_queue_t *tasklist;
-
-  /* Make sure that we received a valid blocked state */
-
-  DEBUGASSERT(task_state >= FIRST_BLOCKED_STATE &&
-              task_state <= LAST_BLOCKED_STATE);
-
-  /* Add the TCB to the blocked task list associated with this state. */
-
-  tasklist = TLIST_BLOCKED(btcb, task_state);
-
-  /* Determine if the task is to be added to a prioritized task list. */
-
-  if (TLIST_ISPRIORITIZED(task_state))
+  if (task_state == TSTATE_WAIT_SEM && btcb->waitsem)
     {
-      /* Add the task to a prioritized list */
-
-      nxsched_add_prioritized(btcb, tasklist);
+      return SEM_WAIT_TLIST(btcb->waitsem);
     }
   else
     {
-      /* Add the task to a non-prioritized list */
-
-      dq_addlast((FAR dq_entry_t *)btcb, tasklist);
+      return g_tasklisttable[task_state].list;
     }
-
-  /* Make sure the TCB's state corresponds to the list */
-
-  btcb->task_state = task_state;
 }

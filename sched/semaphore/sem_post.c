@@ -139,9 +139,7 @@ int nxsem_post(FAR sem_t *sem)
            * that we want.
            */
 
-          for (stcb = (FAR struct tcb_s *)g_waitingforsemaphore.head;
-               (stcb && stcb->waitsem != sem);
-               stcb = stcb->flink);
+          stcb = (FAR struct tcb_s *)dq_remfirst(SEM_WAIT_TLIST(sem));
 
           if (stcb != NULL)
             {

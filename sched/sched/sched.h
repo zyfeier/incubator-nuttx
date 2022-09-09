@@ -74,16 +74,18 @@
 #define TLIST_ISINDEXED(s)       ((__TLIST_ATTR(s) & TLIST_ATTR_INDEXED) != 0)
 #define TLIST_ISRUNNABLE(s)      ((__TLIST_ATTR(s) & TLIST_ATTR_RUNNABLE) != 0)
 
-#define __TLIST_HEAD(s)          g_tasklisttable[s].list
-#define __TLIST_HEADINDEXED(s,c) (&(__TLIST_HEAD(s))[c])
+#define __TLIST_HEAD(t,s)        nxsched_get_tasklist(t,s)
+#define __TLIST_HEADINDEXED(t,s,c) (&(__TLIST_HEAD(t,s))[c])
 
 #ifdef CONFIG_SMP
-#  define TLIST_HEAD(s,c) \
-  ((TLIST_ISINDEXED(s)) ? __TLIST_HEADINDEXED(s,c) : __TLIST_HEAD(s))
-#  define TLIST_BLOCKED(s)       __TLIST_HEAD(s)
+#  define TLIST_HEAD(t,c) ( \
+  (TLIST_ISINDEXED((t)->task_state)) ? \
+  __TLIST_HEADINDEXED(t,(t)->task_state,c) : \
+  __TLIST_HEAD(t,(t)->task_state))
+#  define TLIST_BLOCKED(t,s)      __TLIST_HEAD(t,s)
 #else
-#  define TLIST_HEAD(s)          __TLIST_HEAD(s)
-#  define TLIST_BLOCKED(s)       __TLIST_HEAD(s)
+#  define TLIST_HEAD(t)           __TLIST_HEAD(t,(t)->task_state)
+#  define TLIST_BLOCKED(t,s)      __TLIST_HEAD(t,s)
 #endif
 
 /****************************************************************************
@@ -170,10 +172,6 @@ extern FAR struct tcb_s *g_running_tasks[CONFIG_SMP_NCPUS];
  */
 
 extern dq_queue_t g_pendingtasks;
-
-/* This is the list of all tasks that are blocked waiting for a semaphore */
-
-extern dq_queue_t g_waitingforsemaphore;
 
 /* This is the list of all tasks that are blocked waiting for a signal */
 
@@ -411,5 +409,8 @@ void nxsched_suspend_critmon(FAR struct tcb_s *tcb);
 /* TCB operations */
 
 bool nxsched_verify_tcb(FAR struct tcb_s *tcb);
+
+dq_queue_t *nxsched_get_tasklist(FAR struct tcb_s *btcb,
+                                 tstate_t task_state);
 
 #endif /* __SCHED_SCHED_SCHED_H */
