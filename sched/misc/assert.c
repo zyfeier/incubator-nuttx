@@ -756,7 +756,7 @@ static void dump_assert_info(FAR struct tcb_s *rtcb,
          name.release, name.version, name.machine);
 
   _emerg("Assertion failed %s: at file: %s:%d task"
-#ifdef CONFIG_SMP
+#ifndef CONFIG_UP
          "(CPU%d)"
 #endif
          ": "
@@ -765,8 +765,8 @@ static void dump_assert_info(FAR struct tcb_s *rtcb,
          "%p\n",
          msg ? msg : "",
          filename ? filename : "", linenum,
-#ifdef CONFIG_SMP
-         this_cpu(),
+#ifndef CONFIG_UP
+         up_cpu_index(),
 #endif
          get_task_name(rtcb),
          ptcb ? get_task_name(ptcb) : "Kernel",
