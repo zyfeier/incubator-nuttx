@@ -61,6 +61,7 @@
 
 void tricore_irq_direct(void)
 {
+  uintptr_t istackbase = up_get_intstackbase(up_cpu_index());
   struct tcb_s **running_task = &g_running_task;
   uintptr_t *regs = tricore_csa2addr(tricore_mfcr(TRICORE_CPU_PCXI));
   int irq = tricore_irq_from_lasr();

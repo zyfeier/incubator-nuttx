@@ -62,6 +62,8 @@ __ustack_size = CONFIG_IDLETHREAD_STACKSIZE;
 __csa_end     = ORIGIN(dspr) + LENGTH(dspr);
 __csa_begin   = __csa_end - __csa_size;
 __istack      = __csa_begin;
+__USTACK0     = __ustack;
+__ISTACK0     = __istack;
 __ustack      = __istack - __istack_size;
 
 /* Boot stack and single boot CSA in the PSPR, which the startup code uses
@@ -222,7 +224,22 @@ SECTIONS
     _sheap = ABSOLUTE(.);
   } > dspr
 
-  _eheap = __ustack - __ustack_size;
+  /* Per-CPU stacks for the secondary CPUs, stacked below the CPU0 idle
+   * stack. __USTACKn/__ISTACKn are the stack tops; the memory grows
+   * downwards, so the heap top moves down accordingly.
+   */
+
+  __USTACK1 = __ustack - __ustack_size;
+#if CONFIG_NCPUS > 2
+  __USTACK2 = __ustack - 2 * __ustack_size;
+  __ISTACK1 = __USTACK2 - __ustack_size;
+  __ISTACK2 = __ISTACK1 - __istack_size;
+  _eheap     = __ISTACK2 - __istack_size;
+#else
+  __ISTACK1 = __USTACK1 - __ustack_size;
+  _eheap     = __ISTACK1 - __istack_size;
+#endif
+
 
   .ustack __ustack - __ustack_size (NOLOAD) :
   {

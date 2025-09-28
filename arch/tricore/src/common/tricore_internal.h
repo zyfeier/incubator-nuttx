@@ -149,7 +149,6 @@ typedef void (*up_vector_t)(void);
  */
 
 extern uintptr_t        __ustack[];
-#define g_idle_topstack __ustack
 
 /* Address of the saved user stack pointer */
 
