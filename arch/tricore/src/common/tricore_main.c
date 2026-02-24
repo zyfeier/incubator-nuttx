@@ -42,45 +42,6 @@
 
 /* Entries of the other cores, provided by the linker script */
 
-/* Per-CPU section symbols, provided by the linker script */
-
-#ifdef CONFIG_PERCPU_SECTION
-extern uintptr_t        _ldata_percpu[]; /* Load address of .percpu data */
-extern uintptr_t        _sdata_percpu[]; /* Start of .percpu_data */
-extern uintptr_t        _edata_percpu[]; /* End+1 of .percpu_data */
-extern uintptr_t        _sbss_percpu[];  /* Start of .percpu_bss */
-extern uintptr_t        _ebss_percpu[];  /* End+1 of .percpu_bss */
-#endif
-
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
-
-#ifdef CONFIG_BMP
-
-/* Initialize the per-CPU copy of .data & .bss for this CPU.
- * Called from tricore_head on each core before any other C code.
- */
-
-void tricore_percpu_init(void)
-{
-#ifdef CONFIG_PERCPU_SECTION
-  int cpu = up_cpu_index();
-
-  UNUSED(cpu);
-
-  memcpy((void *)((uintptr_t)_sdata_percpu + PERCPU_OFFSET * cpu),
-         _ldata_percpu,
-         (uintptr_t)_edata_percpu - (uintptr_t)_sdata_percpu);
-  memset((void *)(uintptr_t)_sbss_percpu + PERCPU_OFFSET * cpu,
-         0, (uintptr_t)_ebss_percpu - (uintptr_t)_sbss_percpu);
-#else
-#  warning "BMP requires CONFIG_PERCPU_SECTION on this architecture"
-#endif
-}
-
-#endif /* CONFIG_BMP */
-
 extern uintptr_t __start1[];
 extern uintptr_t __start2[];
 extern uintptr_t __start3[];
@@ -155,10 +116,6 @@ static void tricore_core_sync(volatile uint32_t *sync)
 void tricore_main(void)
 {
   static volatile uint32_t g_sync_event;
-
-#ifdef CONFIG_BMP
-  tricore_percpu_init();
-#endif
 
 #ifdef CONFIG_ARCH_HAVE_FPU
   tricore_fpuinit();

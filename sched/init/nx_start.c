@@ -63,9 +63,6 @@
 #include "init/init.h"
 #include "instrument/instrument.h"
 #include "tls/tls.h"
-#include "wqueue/wqueue.h"
-#include "wdog/wdog.h"
-#include "hrtimer/hrtimer.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -96,9 +93,7 @@
  * task, is always the IDLE task.
  */
 
-#undef g_readytorun
-DEFINE_PER_CPU_BSS_BMP(dq_queue_t, g_readytorun);
-#define g_readytorun this_cpu_var_bmp(g_readytorun)
+dq_queue_t g_readytorun;
 
 /* In order to support SMP, the function of the g_readytorun list changes,
  * The g_readytorun is still used but in the SMP case it will contain only:
@@ -119,15 +114,15 @@ DEFINE_PER_CPU_BSS_BMP(dq_queue_t, g_readytorun);
  */
 
 #ifdef CONFIG_SMP
-DEFINE_PER_CPU_BSS_SMP(FAR struct tcb_s *, g_assignedtasks);
-DEFINE_PER_CPU_BSS_SMP(enum task_deliver_e, g_delivertasks);
+FAR struct tcb_s *g_assignedtasks[CONFIG_SMP_NCPUS];
+enum task_deliver_e g_delivertasks[CONFIG_SMP_NCPUS];
 #endif
 
 /* g_running_tasks[] holds a references to the running task for each CPU.
  * It is valid only when up_interrupt_context() returns true.
  */
 
-DEFINE_PER_CPU_BSS(FAR struct tcb_s *, g_running_tasks);
+FAR struct tcb_s *g_running_tasks[CONFIG_SMP_NCPUS];
 
 /* This is the list of all tasks that are ready-to-run, but cannot be placed
  * in the g_readytorun list because:  (1) They are higher priority than the
@@ -136,32 +131,25 @@ DEFINE_PER_CPU_BSS(FAR struct tcb_s *, g_running_tasks);
  */
 
 #ifndef CONFIG_SMP
-#  undef g_pendingtasks
-DEFINE_PER_CPU_BSS_BMP(dq_queue_t, g_pendingtasks);
-#  define g_pendingtasks this_cpu_var_bmp(g_pendingtasks)
-#endif 
+dq_queue_t g_pendingtasks;
+#endif
 
 /* This is the list of all tasks that are blocked waiting for a signal */
 
-#undef g_waitingforsignal
-DEFINE_PER_CPU_BSS_BMP(dq_queue_t, g_waitingforsignal);
-#define g_waitingforsignal this_cpu_var_bmp(g_waitingforsignal)
+dq_queue_t g_waitingforsignal;
 
 #ifdef CONFIG_LEGACY_PAGING
 /* This is the list of all tasks that are blocking waiting for a page fill */
 
-#undef g_waitingforfill
-DEFINE_PER_CPU_BSS_BMP(dq_queue_t, g_waitingforfill);
-#define g_waitingforfill this_cpu_var_bmp(g_waitingforfill)
+dq_queue_t g_waitingforfill;
 #endif
 
 #ifdef CONFIG_SIG_SIGSTOP_ACTION
 /* This is the list of all tasks that have been stopped
  * via SIGSTOP or SIGTSTP
  */
-#undef g_stoppedtasks
-DEFINE_PER_CPU_BSS_BMP(dq_queue_t, g_stoppedtasks);
-#define g_stoppedtasks this_cpu_var_bmp(g_stoppedtasks)
+
+dq_queue_t g_stoppedtasks;
 #endif
 
 /* Task list for TSTATE_TASK_INACTIVE.  Initialized but not yet activated
@@ -170,15 +158,11 @@ DEFINE_PER_CPU_BSS_BMP(dq_queue_t, g_stoppedtasks);
  * no-op.
  */
 
-#undef g_inactivetasks
-DEFINE_PER_CPU_BSS_BMP(dq_queue_t, g_inactivetasks);
-#define g_inactivetasks this_cpu_var_bmp(g_inactivetasks)
+dq_queue_t g_inactivetasks;
 
 /* This is the value of the last process ID assigned to a task */
 
-#undef g_lastpid
-DEFINE_PER_CPU_BMP(volatile pid_t, g_lastpid) = CONFIG_SMP_NCPUS - 1;
-#define g_lastpid this_cpu_var_bmp(g_lastpid)
+volatile pid_t g_lastpid;
 
 /* The following hash table is used for two things:
  *
@@ -187,17 +171,8 @@ DEFINE_PER_CPU_BMP(volatile pid_t, g_lastpid) = CONFIG_SMP_NCPUS - 1;
  * 2. Is used to quickly map a process ID into a TCB.
  */
 
-#undef g_pidhash
-DEFINE_PER_CPU_BSS_BMP(FAR struct tcb_s **, g_pidhash);
-#define g_pidhash this_cpu_var_bmp(g_pidhash)
-
-#undef g_npidhash
-DEFINE_PER_CPU_BSS_BMP(volatile int, g_npidhash);
-#define g_npidhash this_cpu_var_bmp(g_npidhash)
-
-#undef g_pidhashlock
-DEFINE_PER_CPU_BMP(spinlock_t, g_pidhashlock) = SP_UNLOCKED;
-#define g_pidhashlock this_cpu_var_bmp(g_pidhashlock)
+FAR struct tcb_s **g_pidhash;
+volatile int g_npidhash;
 
 /* This is a table of task lists.  This table is indexed by the task state
  * enumeration type (tstate_t) and provides a pointer to the associated
@@ -206,28 +181,100 @@ DEFINE_PER_CPU_BMP(spinlock_t, g_pidhashlock) = SP_UNLOCKED;
  * ordered list or not.
  */
 
-#undef g_tasklisttable
-DEFINE_PER_CPU_BSS_BMP(tasklist_table_t, g_tasklisttable);
-#define g_tasklisttable this_cpu_var_bmp(g_tasklisttable)
+const struct tasklist_s g_tasklisttable[NUM_TASK_STATES] =
+{
+  [TSTATE_TASK_INVALID] =
+    {
+      NULL, 0
+    },
+
+#ifdef CONFIG_SMP
+  [TSTATE_TASK_READYTORUN] =
+    {
+      list_readytorun(), TLIST_ATTR_PRIORITIZED
+    },
+#else
+  [TSTATE_TASK_PENDING] =
+    {
+      list_pendingtasks(), TLIST_ATTR_PRIORITIZED
+    },
+  [TSTATE_TASK_READYTORUN] =
+    {
+      list_readytorun(), TLIST_ATTR_PRIORITIZED | TLIST_ATTR_RUNNABLE
+    },
+  [TSTATE_TASK_RUNNING] =
+    {
+      list_readytorun(), TLIST_ATTR_PRIORITIZED | TLIST_ATTR_RUNNABLE
+    },
+#endif
+
+  [TSTATE_TASK_INACTIVE] =
+    {
+      list_inactivetasks(), 0
+    },
+  [TSTATE_WAIT_SEM] =
+    {
+      (FAR void *)offsetof(sem_t, waitlist),
+      TLIST_ATTR_PRIORITIZED | TLIST_ATTR_OFFSET
+    },
+
+#ifdef CONFIG_SCHED_EVENTS
+  [TSTATE_WAIT_EVENT] =
+    {
+      (FAR void *)offsetof(nxevent_t, waitlist),
+      TLIST_ATTR_PRIORITIZED | TLIST_ATTR_OFFSET
+    },
+#endif
+
+  [TSTATE_WAIT_SIG] =
+    {
+      list_waitingforsignal(), 0
+    },
+
+#ifndef CONFIG_DISABLE_MQUEUE
+  [TSTATE_WAIT_MQNOTEMPTY] =
+    {
+      (FAR void *)offsetof(struct mqueue_inode_s, cmn.waitfornotempty),
+      TLIST_ATTR_PRIORITIZED | TLIST_ATTR_OFFSET
+    },
+  [TSTATE_WAIT_MQNOTFULL] =
+    {
+      (FAR void *)offsetof(struct mqueue_inode_s, cmn.waitfornotfull),
+      TLIST_ATTR_PRIORITIZED | TLIST_ATTR_OFFSET
+    },
+#endif
+
+#ifdef CONFIG_LEGACY_PAGING
+  [TSTATE_WAIT_PAGEFILL] =
+    {
+      list_waitingforfill(), TLIST_ATTR_PRIORITIZED
+    },
+#endif
+
+#ifdef CONFIG_SIG_SIGSTOP_ACTION
+  [TSTATE_TASK_STOPPED] =
+    {
+      list_stoppedtasks(), 0
+    },
+#endif
+};
 
 /* This is the current initialization state.  The level of initialization
  * is only important early in the start-up sequence when certain OS or
  * hardware resources may not yet be available to the kernel logic.
  */
 
-#undef g_nx_initstate
-DEFINE_PER_CPU_BSS_BMP(volatile enum nx_initstate_e, g_nx_initstate);
-#define g_nx_initstate this_cpu_var_bmp(g_nx_initstate)
+volatile enum nx_initstate_e g_nx_initstate;  /* See enum nx_initstate_e */
 
 /* This is an array of task control block (TCB) for the IDLE thread of each
  * CPU.  For the non-SMP case, this is a a single TCB; For the SMP case,
- * there is one TCB per CPU.  NOTE:  The system boots on CPU0 into the IDLE
+ * there is one TCB per CPU.  NOTE: The system boots on CPU0 into the IDLE
  * task.  The IDLE task later starts the other CPUs and spawns the user
  * initialization task.  That user initialization task is responsible for
  * bringing up the rest of the system.
  */
 
-DEFINE_PER_CPU_BSS(struct tcb_s, g_idletcb);
+struct tcb_s g_idletcb[CONFIG_SMP_NCPUS];
 
 /****************************************************************************
  * Private Data
@@ -238,115 +285,6 @@ DEFINE_PER_CPU_BSS(struct tcb_s, g_idletcb);
 #if CONFIG_TASK_NAME_SIZE > 0 && !defined(CONFIG_SMP)
 static const char g_idlename[] = "Idle_Task";
 #endif
-
-/****************************************************************************
- * Name: tasklist_initialize
- *
- * Description:
- *   Initialization of table of task lists.  This table is indexed by the
- *   task state enumeration type (tstate_t) and provides a pointer to the
- *   associated static task list (if there is one) as well as a set of
- *   attribute flags indicating properties of the list, for example, if the
- *   list is an ordered list or not.
- *
- ****************************************************************************/
-
-static void tasklist_initialize(void)
-{
-  FAR struct tasklist_s *tlist = (FAR void *)&g_tasklisttable;
-
-  /* TSTATE_TASK_INVALID */
-
-  tlist[TSTATE_TASK_INVALID].list = NULL;
-  tlist[TSTATE_TASK_INVALID].attr = 0;
-
-#ifdef CONFIG_SMP
-
-  /* TSTATE_TASK_READYTORUN */
-
-  tlist[TSTATE_TASK_READYTORUN].list = list_readytorun();
-  tlist[TSTATE_TASK_READYTORUN].attr = TLIST_ATTR_PRIORITIZED;
-
-#else
-
-  /* TSTATE_TASK_PENDING */
-
-  tlist[TSTATE_TASK_PENDING].list = list_pendingtasks();
-  tlist[TSTATE_TASK_PENDING].attr = TLIST_ATTR_PRIORITIZED;
-
-  /* TSTATE_TASK_READYTORUN */
-
-  tlist[TSTATE_TASK_READYTORUN].list = list_readytorun();
-  tlist[TSTATE_TASK_READYTORUN].attr = TLIST_ATTR_PRIORITIZED |
-                                       TLIST_ATTR_RUNNABLE;
-
-  /* TSTATE_TASK_RUNNING */
-
-  tlist[TSTATE_TASK_RUNNING].list = list_readytorun();
-  tlist[TSTATE_TASK_RUNNING].attr = TLIST_ATTR_PRIORITIZED |
-                                    TLIST_ATTR_RUNNABLE;
-#endif
-
-  /* TSTATE_TASK_INACTIVE */
-
-  tlist[TSTATE_TASK_INACTIVE].list = list_inactivetasks();
-  tlist[TSTATE_TASK_INACTIVE].attr = 0;
-
-  /* TSTATE_WAIT_SEM */
-
-  tlist[TSTATE_WAIT_SEM].list = (FAR void *)offsetof(sem_t, waitlist);
-  tlist[TSTATE_WAIT_SEM].attr = TLIST_ATTR_PRIORITIZED |
-                                TLIST_ATTR_OFFSET;
-
-#ifdef CONFIG_SCHED_EVENTS
-
-  /* TSTATE_WAIT_EVENT */
-
-  tlist[TSTATE_WAIT_EVENT].list =
-    (FAR void *)offsetof(nxevent_t, waitlist);
-  tlist[TSTATE_WAIT_EVENT].attr = TLIST_ATTR_PRIORITIZED |
-                                  TLIST_ATTR_OFFSET;
-#endif
-
-  /* TSTATE_WAIT_SIG */
-
-  tlist[TSTATE_WAIT_SIG].list = list_waitingforsignal();
-  tlist[TSTATE_WAIT_SIG].attr = 0;
-
-#ifndef CONFIG_DISABLE_MQUEUE
-
-  /* TSTATE_WAIT_MQNOTEMPTY */
-
-  tlist[TSTATE_WAIT_MQNOTEMPTY].list =
-    (FAR void *)offsetof(struct mqueue_inode_s, cmn.waitfornotempty);
-  tlist[TSTATE_WAIT_MQNOTEMPTY].attr = TLIST_ATTR_PRIORITIZED |
-                                       TLIST_ATTR_OFFSET;
-
-  /* TSTATE_WAIT_MQNOTFULL */
-
-  tlist[TSTATE_WAIT_MQNOTFULL].list =
-    (FAR void *)offsetof(struct mqueue_inode_s, cmn.waitfornotfull);
-  tlist[TSTATE_WAIT_MQNOTFULL].attr = TLIST_ATTR_PRIORITIZED |
-                                      TLIST_ATTR_OFFSET;
-#endif
-
-#ifdef CONFIG_LEGACY_PAGING
-
-  /* TSTATE_WAIT_PAGEFILL */
-
-  tlist[TSTATE_WAIT_PAGEFILL].list = list_waitingforfill();
-  tlist[TSTATE_WAIT_PAGEFILL].attr = TLIST_ATTR_PRIORITIZED;
-#endif
-
-#ifdef CONFIG_SIG_SIGSTOP_ACTION
-
-  /* TSTATE_TASK_STOPPED */
-
-  tlist[TSTATE_TASK_STOPPED].list = list_stoppedtasks();
-  tlist[TSTATE_TASK_STOPPED].attr = 0;
-
-#endif
-}
 
 /****************************************************************************
  * Name: idle_task_initialize
@@ -361,10 +299,10 @@ static void idle_task_initialize(void)
   FAR struct tcb_s *tcb;
   int i;
 
-  memset(&g_idletcb, 0, sizeof(g_idletcb));
+  memset(g_idletcb, 0, sizeof(g_idletcb));
   for (i = 0; i < CONFIG_SMP_NCPUS; i++)
     {
-      tcb = &per_cpu_var_smp(g_idletcb, i);
+      tcb = &g_idletcb[i];
 
       /* Initialize a TCB for this thread of execution.  NOTE:  The default
        * value for most components of the g_idletcb are zero.  The entire
@@ -435,20 +373,18 @@ static void idle_task_initialize(void)
        */
 
 #ifdef CONFIG_SMP
-      per_cpu_var_smp(g_assignedtasks, i) = tcb;
+      g_assignedtasks[i] = tcb;
 #else
       dq_addfirst((FAR dq_entry_t *)tcb, TLIST_HEAD(tcb));
 #endif
 
       /* Mark the idle task as the running task */
 
-      per_cpu_var_smp(g_running_tasks, i) = tcb;
+      g_running_tasks[i] = tcb;
 
       if (i == 0)
         {
-          /* Init idle task to percpu reg */
-
-          up_update_task(&per_cpu_var_smp(g_idletcb, 0));
+          up_update_task(&g_idletcb[0]); /* Init idle task to percpu reg */
         }
     }
 }
@@ -471,7 +407,7 @@ static void idle_group_initialize(void)
 
   for (i = 0; i < CONFIG_SMP_NCPUS; i++)
     {
-      tcb = &per_cpu_var_smp(g_idletcb, i);
+      tcb = &g_idletcb[i];
 
       hashndx = PIDHASH(i);
       g_pidhash[hashndx] = tcb;
@@ -550,14 +486,6 @@ void nx_start(void)
 #ifdef CONFIG_SCHED_WORKQUEUE
   work_initialize();
 #endif
-
-  /* Initialize wdog list ***************************************************/
-
-  wdlist_initialize();
-
-  /* Initialize task list table *********************************************/
-
-  tasklist_initialize();
 
   /* Initialize the IDLE task TCB *******************************************/
 
@@ -746,7 +674,7 @@ void nx_start(void)
 
   /* Announce that the CPU0 IDLE task has started */
 
-  sched_note_start(&per_cpu_var_smp(g_idletcb, 0));
+  sched_note_start(&g_idletcb[0]);
 
   /* Initialize stdio for the IDLE task of each CPU */
 
@@ -756,8 +684,7 @@ void nx_start(void)
         {
           /* Clone stdout, stderr, stdin from the CPU0 IDLE task. */
 
-          DEBUGVERIFY(group_setuptaskfiles(&per_cpu_var_smp(g_idletcb, i),
-                                           NULL, true));
+          DEBUGVERIFY(group_setuptaskfiles(&g_idletcb[i], NULL, true));
         }
       else
         {

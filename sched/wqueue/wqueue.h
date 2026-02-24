@@ -121,15 +121,13 @@ struct lp_wqueue_s
 #ifdef CONFIG_SCHED_HPWORK
 /* The state of the kernel mode, high priority work queue. */
 
-DECLARE_PER_CPU_BMP(struct hp_wqueue_s, g_hpwork);
-#  define g_hpwork this_cpu_var_bmp(g_hpwork)
+extern struct hp_wqueue_s g_hpwork;
 #endif
 
 #ifdef CONFIG_SCHED_LPWORK
 /* The state of the kernel mode, low priority work queue(s). */
 
-DECLARE_PER_CPU_BMP(struct lp_wqueue_s, g_lpwork);
-#  define g_lpwork this_cpu_var_bmp(g_lpwork)
+extern struct lp_wqueue_s g_lpwork;
 #endif
 
 /****************************************************************************

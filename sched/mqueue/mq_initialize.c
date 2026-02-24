@@ -70,21 +70,15 @@ struct msgpool_s
  * item.
  */
 
-#undef g_msgfree
-DEFINE_PER_CPU_BSS_BMP(struct list_node, g_msgfree);
-#define g_msgfree this_cpu_var_bmp(g_msgfree)
+struct list_node g_msgfree;
 
 /* The g_msgfreeInt is a list of messages that are reserved for use by
  * interrupt handlers.
  */
 
-#undef g_msgfreeirq
-DEFINE_PER_CPU_BSS_BMP(struct list_node, g_msgfreeirq);
-#define g_msgfreeirq this_cpu_var_bmp(g_msgfreeirq)
+struct list_node g_msgfreeirq;
 
-#undef g_msgfreelock
-DEFINE_PER_CPU_BMP(spinlock_t, g_msgfreelock) = SP_UNLOCKED;
-#define g_msgfreelock this_cpu_var_bmp(g_msgfreelock)
+spinlock_t g_msgfreelock = SP_UNLOCKED;
 
 #endif
 
@@ -94,8 +88,7 @@ DEFINE_PER_CPU_BMP(spinlock_t, g_msgfreelock) = SP_UNLOCKED;
 
 /* This is a pool of pre-allocated message queue buffers */
 
-static DEFINE_PER_CPU_BSS_BMP(struct msgpool_s, g_msgpool);
-#define g_msgpool this_cpu_var_bmp(g_msgpool)
+static struct msgpool_s g_msgpool;
 
 /****************************************************************************
  * Private Functions
@@ -142,7 +135,6 @@ static FAR void *sysv_msgblockinit(FAR struct list_node *list,
                                    FAR struct msgbuf_s *msg, uint16_t nmsgs)
 {
   int i;
-
   for (i = 0; i < nmsgs; i++)
     {
       list_add_tail(list, &msg->node);

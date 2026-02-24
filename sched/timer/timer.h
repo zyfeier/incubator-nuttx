@@ -85,8 +85,7 @@ struct posix_timer_s
 #if CONFIG_PREALLOC_TIMERS > 0
 /* This is a list of free, preallocated timer structures */
 
-DECLARE_PER_CPU_BMP(volatile sq_queue_t, g_freetimers);
-#define g_freetimers this_cpu_var_bmp(g_freetimers)
+extern volatile sq_queue_t g_freetimers;
 #endif
 
 /* This is a list of instantiated timer structures -- active and inactive.
@@ -94,11 +93,9 @@ DECLARE_PER_CPU_BMP(volatile sq_queue_t, g_freetimers);
  * list by timer_delete() or when the owning thread exits.
  */
 
-DECLARE_PER_CPU_BMP(volatile sq_queue_t, g_alloctimers);
-#define g_alloctimers this_cpu_var_bmp(g_alloctimers)
+extern volatile sq_queue_t g_alloctimers;
 
-DECLARE_PER_CPU_BMP(spinlock_t, g_locktimers);
-#define g_locktimers this_cpu_var_bmp(g_locktimers)
+extern spinlock_t g_locktimers;
 
 /****************************************************************************
  * Public Function Prototypes

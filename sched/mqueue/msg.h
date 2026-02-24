@@ -83,8 +83,7 @@ extern "C"
 {
 #endif
 
-DECLARE_PER_CPU_BMP(struct list_node, g_msgfreelist);
-#define g_msgfreelist this_cpu_var_bmp(g_msgfreelist)
+extern struct list_node g_msgfreelist;
 
 /* The senders that wait for a free message in g_msgfreelist */
 

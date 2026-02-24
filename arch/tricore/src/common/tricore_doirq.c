@@ -61,7 +61,7 @@
 
 void tricore_irq_direct(void)
 {
-  struct tcb_s **running_task = &g_running_task;
+  struct tcb_s **running_task = &g_running_tasks[this_cpu()];
   uintptr_t *regs = tricore_csa2addr(tricore_mfcr(TRICORE_CPU_PCXI));
   int irq = tricore_irq_from_lasr();
 
@@ -102,15 +102,14 @@ void tricore_irq_direct(void)
 
 void tricore_irq_sched(void)
 {
-  struct tcb_s **running_task = &g_running_task;
+  struct tcb_s **running_task = &g_running_tasks[this_cpu()];
   uintptr_t *regs = tricore_csa2addr(tricore_mfcr(TRICORE_CPU_PCXI));
   struct tcb_s *tcb;
 #ifndef CONFIG_ARCH_IRQPRIO
   int irq = tricore_irq_from_lasr();
 #endif
 
-  tcb = *running_task;
-  if (tcb != NULL)
+  if (*running_task != NULL)
     {
       (*running_task)->xcp.regs = regs;
       tricore_store_pprs(*running_task);

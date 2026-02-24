@@ -57,10 +57,6 @@ struct irq_work_info_s
   FAR struct kwork_wqueue_s *wqueue;   /* Work queue. */
 };
 
-typedef uint8_t irq_work_stack_t[CONFIG_IRQ_WORK_STACKSIZE];
-typedef irq_work_stack_t irq_nwork_stack_t[CONFIG_IRQ_NWORKS];
-typedef FAR struct kwork_wqueue_s *irq_nworkq_t[CONFIG_IRQ_NWORKS];
-
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
@@ -68,20 +64,16 @@ typedef FAR struct kwork_wqueue_s *irq_nworkq_t[CONFIG_IRQ_NWORKS];
 static
 inline_function FAR struct kwork_wqueue_s *irq_get_wqueue(int priority)
 {
-  static aligned_data(STACK_ALIGNMENT)
-  DEFINE_PER_CPU_BSS_BMP(irq_nwork_stack_t, irq_work_stack)
 #ifdef IRQ_WORK_SECTION
-  locate_data(CONFIG_IRQ_WORK_SECTION)
+  static aligned_data(STACK_ALIGNMENT) uint8_t
+  irq_work_stack[CONFIG_IRQ_NWORKS][CONFIG_IRQ_WORK_STACKSIZE]
+  locate_data(CONFIG_IRQ_WORK_SECTION);
+#else
+  static aligned_data(STACK_ALIGNMENT) uint8_t
+  irq_work_stack[CONFIG_IRQ_NWORKS][CONFIG_IRQ_WORK_STACKSIZE];
 #endif
-  ;
-
-  static
-  DEFINE_PER_CPU_BMP(mutex_t, irq_wqueue_lock) = NXMUTEX_INITIALIZER;
-  static DEFINE_PER_CPU_BSS_BMP(irq_nworkq_t, irq_wqueue);
-
-#define irq_work_stack this_cpu_var_bmp(irq_work_stack)
-#define irq_wqueue_lock this_cpu_var_bmp(irq_wqueue_lock)
-#define irq_wqueue this_cpu_var_bmp(irq_wqueue)
+  static mutex_t irq_wqueue_lock = NXMUTEX_INITIALIZER;
+  static FAR struct kwork_wqueue_s *irq_wqueue[CONFIG_IRQ_NWORKS];
 
   FAR struct kwork_wqueue_s *queue = NULL;
   int wqueue_priority;

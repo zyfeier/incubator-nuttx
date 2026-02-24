@@ -55,8 +55,7 @@
  * Private Data
  ****************************************************************************/
 
-static DEFINE_PER_CPU_BMP(struct tricore_trap_s, g_trapinfo);
-#define g_trapinfo this_cpu_var_bmp(g_trapinfo)
+static struct tricore_trap_s g_trapinfo;
 
 /* Bus trap hook for safety test modules (e.g., BusMonTst). */
 
@@ -304,7 +303,7 @@ void tricore_trapcall(void *taddr, uint32_t tid, uint32_t tclass)
     {
       /* Update the current task's regs */
 
-      g_running_task->xcp.regs = regs - TC_CONTEXT_REGS;
+      g_running_tasks[this_cpu()]->xcp.regs = regs;
     }
 
   /* Save trap info for coredump */
@@ -336,7 +335,7 @@ void tricore_trapcall(void *taddr, uint32_t tid, uint32_t tclass)
        * and will be marked as NULL to avoid misusage.
        */
 
-      g_running_task->xcp.regs = NULL;
+      g_running_tasks[this_cpu()]->xcp.regs = NULL;
     }
 
   tricore_jump_backto_link();

@@ -48,9 +48,6 @@
 
 typedef int (*holderhandler_t)(FAR struct semholder_s *pholder,
                                FAR sem_t *sem, FAR void *arg);
-#if CONFIG_SEM_PREALLOCHOLDERS > 0
-typedef struct semholder_s semholder_prealloc_t[CONFIG_SEM_PREALLOCHOLDERS];
-#endif
 
 /****************************************************************************
  * Private Data
@@ -59,10 +56,8 @@ typedef struct semholder_s semholder_prealloc_t[CONFIG_SEM_PREALLOCHOLDERS];
 /* Preallocated holder structures */
 
 #if CONFIG_SEM_PREALLOCHOLDERS > 0
-static DEFINE_PER_CPU_BSS_BMP(semholder_prealloc_t, g_holderalloc);
-static DEFINE_PER_CPU_BSS_BMP(FAR struct semholder_s *, g_freeholders);
-#  define g_holderalloc this_cpu_var_bmp(g_holderalloc)
-#  define g_freeholders this_cpu_var_bmp(g_freeholders)
+static struct semholder_s g_holderalloc[CONFIG_SEM_PREALLOCHOLDERS];
+static FAR struct semholder_s *g_freeholders;
 #endif
 
 /****************************************************************************

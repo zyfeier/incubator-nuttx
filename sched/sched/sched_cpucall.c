@@ -50,7 +50,7 @@ struct cpu_call_cookie_s
  * Private Data
  ****************************************************************************/
 
-static sq_queue_t g_cpu_call_queue[CONFIG_NCPUS];
+static sq_queue_t g_cpu_call_queue[CONFIG_SMP_NCPUS];
 static spinlock_t g_cpu_call_lock;
 
 /****************************************************************************
@@ -75,13 +75,12 @@ static spinlock_t g_cpu_call_lock;
 static void nxsched_cpu_call_add(int cpu,
                                  FAR struct cpu_call_data_s *data)
 {
-  FAR sq_queue_t *call_queue = &g_cpu_call_queue[cpu];
   irqstate_t flags;
 
   flags = spin_lock_irqsave(&g_cpu_call_lock);
-  if (!sq_inqueue(&data->node[cpu], call_queue))
+  if (!sq_inqueue(&data->node[cpu], &g_cpu_call_queue[cpu]))
     {
-      sq_addlast(&data->node[cpu], call_queue);
+      sq_addlast(&data->node[cpu], &g_cpu_call_queue[cpu]);
     }
 
   spin_unlock_irqrestore(&g_cpu_call_lock, flags);

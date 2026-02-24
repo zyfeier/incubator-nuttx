@@ -82,7 +82,6 @@ bool nxsched_remove_readytorun(FAR struct tcb_s *rtcb)
        */
 
       FAR struct tcb_s *nxttcb = (FAR struct tcb_s *)rtcb->flink;
-
       DEBUGASSERT(nxttcb != NULL);
 
       nxttcb->task_state = TSTATE_TASK_RUNNING;
@@ -152,7 +151,7 @@ static void nxsched_remove_running(FAR struct tcb_s *tcb)
 
   /* Next task will be the idle task */
 
-  nxttcb = &per_cpu_var_smp(g_idletcb, cpu);
+  nxttcb = &g_idletcb[cpu];
 
   /* Since the TCB is no longer in any list, it is now invalid */
 
@@ -161,7 +160,7 @@ static void nxsched_remove_running(FAR struct tcb_s *tcb)
   /* Activate the idle task */
 
   nxttcb->task_state = TSTATE_TASK_RUNNING;
-  per_cpu_var_smp(g_assignedtasks, cpu) = nxttcb;
+  g_assignedtasks[cpu] = nxttcb;
   up_update_task(nxttcb);
 
   nxsched_switch_running(tcb->cpu, false);

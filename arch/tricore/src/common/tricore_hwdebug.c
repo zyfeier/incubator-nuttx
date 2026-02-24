@@ -327,8 +327,8 @@ used_code static void tricore_trevt_match(void)
 
   /* Debug trap handler. */
 
-  regs = per_cpu_var_smp(g_running_tasks, cpu)->xcp.regs;
-  per_cpu_var_smp(g_running_tasks, cpu)->xcp.regs = context;
+  regs = g_running_tasks[cpu]->xcp.regs;
+  g_running_tasks[cpu]->xcp.regs = context;
 
   evtsrc = ((tricore_mfcr(TC_DBGSR) >> TC_DBGSR_EVTSRC_OFF) &
             TC_DBGSR_EVTSRC_MSK) - TREVT_DEBUG_EVTSRC_BASE;
@@ -338,7 +338,7 @@ used_code static void tricore_trevt_match(void)
                                     g_trevt_debug.dp[evtsrc].size,
                                     g_trevt_debug.dp[evtsrc].arg);
 
-  per_cpu_var_smp(g_running_tasks, cpu)->xcp.regs = regs;
+  g_running_tasks[cpu]->xcp.regs = regs;
 
   /* Switch to thread csa list. */
 

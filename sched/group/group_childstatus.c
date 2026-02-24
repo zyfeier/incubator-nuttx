@@ -65,11 +65,8 @@ struct child_pool_s
  * Private Data
  ****************************************************************************/
 
-static DEFINE_PER_CPU_BSS_BMP(struct child_pool_s, g_child_pool);
-#define g_child_pool this_cpu_var_bmp(g_child_pool)
-
-static DEFINE_PER_CPU_BMP(spinlock_t, g_child_pool_lock) = SP_UNLOCKED;
-#define g_child_pool_lock this_cpu_var_bmp(g_child_pool_lock)
+static struct child_pool_s g_child_pool;
+static spinlock_t g_child_pool_lock = SP_UNLOCKED;
 
 /****************************************************************************
  * Private Functions
@@ -409,8 +406,6 @@ FAR struct child_status_s *group_wait_child(FAR struct task_group_s *group,
 {
   FAR struct child_status_s *child;
   irqstate_t flags;
-
-  /* Find the status structure of any child task that has exited. */
 
   *found = false;
 

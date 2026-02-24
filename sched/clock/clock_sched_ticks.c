@@ -39,12 +39,8 @@
  * Private Data
  ****************************************************************************/
 
-static DEFINE_PER_CPU_BSS_BMP(volatile clock_t, g_system_ticks);
-static DEFINE_PER_CPU_BMP(seqcount_t, g_system_tick_lock) =
-  SEQLOCK_INITIALIZER;
-
-#define g_system_ticks this_cpu_var_bmp(g_system_ticks)
-#define g_system_tick_lock this_cpu_var_bmp(g_system_tick_lock)
+static volatile clock_t g_system_ticks;
+static seqcount_t g_system_tick_lock = SEQLOCK_INITIALIZER;
 
 /****************************************************************************
  * Public Functions

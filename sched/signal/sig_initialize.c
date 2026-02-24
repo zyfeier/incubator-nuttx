@@ -56,9 +56,7 @@ struct sigpool_s
 /* This is a pool of pre-allocated signal action structures buffers */
 
 #if defined(CONFIG_ENABLE_ALL_SIGNALS) && CONFIG_SIG_PREALLOC_ACTIONS > 0
-#  undef g_sigactions
-DEFINE_PER_CPU_BSS_BMP(sigaction_prealloc_t, g_sigactions);
-#  define g_sigactions this_cpu_var_bmp(g_sigactions)
+sigactq_t  g_sigactions[CONFIG_SIG_PREALLOC_ACTIONS];
 #endif
 
 #ifdef CONFIG_ENABLE_ALL_SIGNALS
@@ -67,47 +65,35 @@ DEFINE_PER_CPU_BSS_BMP(sigaction_prealloc_t, g_sigactions);
  * action structures.
  */
 
-#undef g_sigfreeaction
-DEFINE_PER_CPU_BSS_BMP(sq_queue_t, g_sigfreeaction);
-#define g_sigfreeaction this_cpu_var_bmp(g_sigfreeaction)
+sq_queue_t  g_sigfreeaction;
 
 /* The g_sigpendingaction data structure is a list of available pending
  * signal action structures.
  */
 
-#undef g_sigpendingaction
-DEFINE_PER_CPU_BSS_BMP(sq_queue_t, g_sigpendingaction);
-#define g_sigpendingaction this_cpu_var_bmp(g_sigpendingaction)
+sq_queue_t  g_sigpendingaction;
 
 /* The g_sigpendingirqaction is a list of available pending signal actions
  * that are reserved for use by interrupt handlers.
  */
 
-#undef g_sigpendingirqaction
-DEFINE_PER_CPU_BSS_BMP(sq_queue_t, g_sigpendingirqaction);
-#define g_sigpendingirqaction this_cpu_var_bmp(g_sigpendingirqaction)
+sq_queue_t  g_sigpendingirqaction;
 #endif
 
 /* The g_sigpendingsignal data structure is a list of available pending
  * signal structures.
  */
 
-#undef g_sigpendingsignal
-DEFINE_PER_CPU_BSS_BMP(sq_queue_t, g_sigpendingsignal);
-#define g_sigpendingsignal this_cpu_var_bmp(g_sigpendingsignal)
+sq_queue_t  g_sigpendingsignal;
 
 /* The g_sigpendingirqsignal data structure is a list of available
  * pending signal structures that are reserved for use by interrupt
  * handlers.
  */
 
-#undef g_sigpendingirqsignal
-DEFINE_PER_CPU_BSS_BMP(sq_queue_t, g_sigpendingirqsignal);
-#define g_sigpendingirqsignal this_cpu_var_bmp(g_sigpendingirqsignal)
+sq_queue_t  g_sigpendingirqsignal;
 
-#undef g_sigspinlock
-DEFINE_PER_CPU_BMP(spinlock_t, g_sigspinlock) = SP_UNLOCKED;
-#define g_sigspinlock this_cpu_var_bmp(g_sigspinlock)
+spinlock_t g_sigspinlock = SP_UNLOCKED;
 
 /****************************************************************************
  * Private Data
@@ -115,9 +101,7 @@ DEFINE_PER_CPU_BMP(spinlock_t, g_sigspinlock) = SP_UNLOCKED;
 
 /* This is a pool of pre-allocated signal structures buffers */
 
-#undef g_sigpool
-static DEFINE_PER_CPU_BSS_BMP(struct sigpool_s, g_sigpool);
-#define g_sigpool this_cpu_var_bmp(g_sigpool)
+static struct sigpool_s g_sigpool;
 
 /****************************************************************************
  * Private Functions

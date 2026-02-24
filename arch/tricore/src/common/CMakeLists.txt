@@ -75,10 +75,6 @@ if(CONFIG_ARCH_HAVE_DEBUG)
   list(APPEND SRCS tricore_hwdebug.c)
 endif()
 
-if(NOT CONFIG_UP AND CONFIG_ARCH_HAVE_IRQTRIGGER)
-  list(APPEND SRCS tricore_cpucall.c)
-endif()
-
 target_sources(arch PRIVATE ${SRCS})
 target_sources(nuttx PRIVATE tricore_doirq.c)
 

@@ -42,8 +42,6 @@ struct irqchain_s
   FAR void *arg;     /* The argument provided to the interrupt handler. */
 };
 
-typedef struct irqchain_s irqchainpool_t[CONFIG_PREALLOC_IRQCHAIN];
-
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -52,10 +50,8 @@ typedef struct irqchain_s irqchainpool_t[CONFIG_PREALLOC_IRQCHAIN];
  * available to the system for delayed function use.
  */
 
-static DEFINE_PER_CPU_BSS_BMP(sq_queue_t, g_irqchainfreelist);
-static DEFINE_PER_CPU_BMP(spinlock_t, g_irqchainlock) = SP_UNLOCKED;
-#define g_irqchainfreelist this_cpu_var_bmp(g_irqchainfreelist)
-#define g_irqchainlock this_cpu_var_bmp(g_irqchainlock)
+static sq_queue_t g_irqchainfreelist;
+static spinlock_t g_irqchainlock = SP_UNLOCKED;
 
 /****************************************************************************
  * Private Functions
@@ -112,9 +108,9 @@ void irqchain_initialize(void)
    * chains in the pool is a configuration item.
    */
 
-  static DEFINE_PER_CPU_BSS_BMP(irqchainpool_t, g_irqchainpool);
+  static struct irqchain_s irqchainpool[CONFIG_PREALLOC_IRQCHAIN];
 
-  FAR struct irqchain_s *irqchain = this_cpu_var_bmp(g_irqchainpool);
+  FAR struct irqchain_s *irqchain = irqchainpool;
   int i;
 
   /* Initialize irqchain free lists */

@@ -63,13 +63,10 @@
  * Private Data
  ****************************************************************************/
 
-static
-DEFINE_PER_CPU_BSS_BMP(FAR struct oneshot_lowerhalf_s *, g_oneshot_lower);
-#define g_oneshot_lower this_cpu_var_bmp(g_oneshot_lower)
+static FAR struct oneshot_lowerhalf_s *g_oneshot_lower;
 
 #ifndef CONFIG_SCHED_TICKLESS
-static DEFINE_PER_CPU_BSS_BMP(clock_t, g_current_tick);
-#  define g_current_tick this_cpu_var_bmp(g_current_tick)
+static clock_t g_current_tick;
 #endif
 
 /****************************************************************************

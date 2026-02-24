@@ -84,9 +84,7 @@
  * each would have a load of 25% of the total.
  */
 
-#undef g_cpuload_total
-DEFINE_PER_CPU_BSS_BMP(volatile clock_t, g_cpuload_total);
-#define g_cpuload_total this_cpu_var_bmp(g_cpuload_total)
+volatile clock_t g_cpuload_total;
 
 /****************************************************************************
  * Private Data

@@ -181,16 +181,6 @@
 #define TRICORE_IRQ_MIN_PRIORITY 1
 #define TRICORE_IRQ_MAX_PRIORITY 255
 
-/* CPUCALL uses GPSR{cpu}_SR7 instead of GPSR7_SR{cpu} so that it works
- * on all TC4XX variants (TC48X/TC4ZX do not have GPSR7).
- */
-
-#define TRICORE_CPUCALL_SRC(cpu) \
-  ((volatile uint32_t *)(TRICORE_SRC_GPSR_BASE + \
-   ((cpu) * TRICORE_SRCNUM_PER_GPSR + 7) * 4))
-#define TRICORE_CPUCALL_IRQNUM(cpu) \
-  TRICORE_SRC2IRQ(TRICORE_CPUCALL_SRC(cpu))
-
 /* For use with EABI and floating point, the stack must be aligned to 8-byte
  * addresses.
  */

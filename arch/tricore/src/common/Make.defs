@@ -91,16 +91,15 @@ endif
 # TASKING toolchain: build a fake libc_fpu.a to override the toolchain's
 # default C library and provide stubs for the symbols the linker still
 # references (see tricore_libc.c for details).
+
 ifeq ($(CONFIG_TRICORE_TOOLCHAIN_TASKING),y)
+
 tricore_libc$(OBJEXT): tricore_libc.c
 	$(call COMPILE, $<, $@)
+
 libc_fpu$(LIBEXT): tricore_libc$(OBJEXT)
 	$(call ARCHIVE, $@, $^)
-EXTRA_LIBS += libc_fpu$(LIBEXT)
-endif
 
-ifneq ($(CONFIG_UP),y)
-ifeq ($(CONFIG_ARCH_HAVE_IRQTRIGGER),y)
-  CMN_CSRCS += tricore_cpucall.c
-endif
+EXTRA_LIBS += libc_fpu$(LIBEXT)
+
 endif
