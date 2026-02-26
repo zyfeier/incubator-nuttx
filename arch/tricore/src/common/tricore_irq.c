@@ -36,6 +36,7 @@
 #include <nuttx/spinlock.h>
 
 #include "tricore_internal.h"
+#include <nuttx/sched.h>
 
 /****************************************************************************
  * Private Functions
@@ -89,6 +90,41 @@ static void tricore_src_enable(int irq)
 
   putreg32(getreg32(src) | TRICORE_SRC_SRE, src);
 }
+
+#  ifndef CONFIG_UP
+/****************************************************************************
+ * Name: tricore_cpucallinitialize
+ *
+ * Description:
+ *   Initialize the cpucall feature, attach cpu call handler to the event irq
+ *
+ ****************************************************************************/
+
+static inline_function void tricore_cpucallinitialize(void)
+{
+  int cpu = up_cpu_index();
+  int irq;
+
+  /* Use GPSR{cpu}_SR7 for cpucall instead of GPSR7_SR{cpu}.
+   * TC48X/TC4ZX do not have GPSR7, but all TC4XX chips have SR7
+   * in each GPSR group, so this works across all variants.
+   */
+
+  irq = TRICORE_CPUCALL_IRQNUM(cpu);
+  tricore_src_init(irq, TRICORE_SRC_TOS_CPU(cpu), IRQ_TO_NDX(irq));
+
+  /* Each CPU attaches one handler to GPSR{cpu}_SR7. */
+
+  if (irq_attach(irq, nxsched_cpu_call_handler, NULL) >= 0)
+    {
+      up_enable_irq(irq);
+    }
+  else
+    {
+      PANIC();
+    }
+}
+#  endif
 
 /****************************************************************************
  * Public Functions
@@ -248,6 +284,9 @@ void up_irqinitialize(void)
 {
 #ifdef CONFIG_ARCH_HAVE_IRQTRIGGER
   tricore_gpsrinitialize();
+#  ifndef CONFIG_UP
+  tricore_cpucallinitialize();
+#  endif
 #endif
 
   tricore_color_intstack();

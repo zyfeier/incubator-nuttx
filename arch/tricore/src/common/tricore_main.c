@@ -66,6 +66,7 @@ void tricore_percpu_init(void)
 {
 #ifdef CONFIG_PERCPU_SECTION
   int cpu = up_cpu_index();
+
   UNUSED(cpu);
 
   memcpy((void *)((uintptr_t)_sdata_percpu + PERCPU_OFFSET * cpu),
