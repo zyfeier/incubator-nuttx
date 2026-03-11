@@ -118,6 +118,10 @@
  * Public Function Prototypes
  ****************************************************************************/
 
+/* Add mpu.h later to avoid circular dependency of percpu */
+
+#include <arch/mpu.h>
+
 #ifdef __cplusplus
 extern "C"
 {
