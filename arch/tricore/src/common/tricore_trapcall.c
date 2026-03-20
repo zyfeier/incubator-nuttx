@@ -55,7 +55,8 @@
  * Private Data
  ****************************************************************************/
 
-static struct tricore_trap_s g_trapinfo;
+static DEFINE_PER_CPU_BMP(struct tricore_trap_s, g_trapinfo);
+#define g_trapinfo this_cpu_var_bmp(g_trapinfo)
 
 /* Bus trap hook for safety test modules (e.g., BusMonTst). */
 
