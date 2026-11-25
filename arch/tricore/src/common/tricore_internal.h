@@ -164,6 +164,14 @@ extern uintptr_t        __istack[];
 extern uintptr_t        _sheap[]; /* Start of .heap */
 extern uintptr_t        _eheap[]; /* End+1 of .heap */
 
+#  ifdef CONFIG_PERCPU_SECTION
+extern uintptr_t        _ldata_percpu[]; /* The address where load to .percpu data */
+extern uintptr_t        _sdata_percpu[]; /* Start of .percpu_data */
+extern uintptr_t        _edata_percpu[]; /* End+1 of .percpu_data */
+extern uintptr_t        _sbss_percpu[];  /* Start of .percpu_bss */
+extern uintptr_t        _ebss_percpu[];  /* End+1 of .percpu_bss */
+#  endif
+
 #endif
 
 /****************************************************************************
