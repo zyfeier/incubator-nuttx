@@ -290,10 +290,9 @@ static const struct oneshot_operations_s g_tricore_oneshot_ops =
   .max_delay      = tricore_systimer_max_delay
 };
 
-static struct tricore_systimer_lowerhalf_s g_tricore_oneshot_lowerhalf =
-{
-  .lower.ops = &g_tricore_oneshot_ops
-};
+static DEFINE_PER_CPU_BSS_BMP(struct tricore_systimer_lowerhalf_s,
+                              g_tricore_oneshot_lowerhalf);
+#define g_tricore_oneshot_lowerhalf this_cpu_var_bmp(g_tricore_oneshot_lowerhalf)
 
 /****************************************************************************
  * Public Functions
@@ -315,6 +314,7 @@ tricore_systimer_initialize(uintptr_t tbase, uintptr_t fr_tbase,
   struct tricore_systimer_lowerhalf_s *priv = &g_tricore_oneshot_lowerhalf;
   uint32_t regval;
 
+  priv->lower.ops = &g_tricore_oneshot_ops;
   priv->tbase = tbase;
   priv->freerun_tbase = fr_tbase;
   priv->irq = irq;
