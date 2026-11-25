@@ -303,7 +303,7 @@ void tricore_trapcall(void *taddr, uint32_t tid, uint32_t tclass)
     {
       /* Update the current task's regs */
 
-      g_running_tasks[this_cpu()]->xcp.regs = regs;
+      g_running_task->xcp.regs = regs - TC_CONTEXT_REGS;
     }
 
   /* Save trap info for coredump */
