@@ -65,16 +65,3 @@ clock_t  g_wdexpired;
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-
-/****************************************************************************
- * Name: wdlist_initialize
- *
- * Description:
- *   This function do list initialize, list should prefer runtime init.
- *
- ****************************************************************************/
-
-void wdlist_initialize(void)
-{
-  list_initialize(&g_wdactivelist);
-}
