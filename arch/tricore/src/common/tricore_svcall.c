@@ -384,6 +384,7 @@ void tricore_svcall(volatile void *trap)
   /* Updata PPRS register */
 
   tricore_restore_pprs(tcb);
+
   UP_ISB();
 
   /* (*running_task)->xcp.regs is about to become invalid and

@@ -109,7 +109,8 @@ void tricore_irq_sched(void)
   int irq = tricore_irq_from_lasr();
 #endif
 
-  if (*running_task != NULL)
+  tcb = *running_task;
+  if (tcb != NULL)
     {
       (*running_task)->xcp.regs = regs;
       tricore_store_pprs(*running_task);
