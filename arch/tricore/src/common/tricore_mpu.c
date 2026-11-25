@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include <nuttx/debug.h>
+#include <nuttx/percpu.h>
 
 #include <arch/barriers.h>
 
@@ -34,9 +35,14 @@
  * Private Variables
  ****************************************************************************/
 
-static unsigned int g_mpu_data_region;
-static unsigned int g_mpu_code_region;
-static unsigned int g_mpu_set;
+static DEFINE_PER_CPU_BMP(unsigned int, g_mpu_data_region);
+static DEFINE_PER_CPU_BMP(unsigned int, g_mpu_code_region);
+static DEFINE_PER_CPU_BMP(unsigned int, g_mpu_set,
+                          (1 << MPU_KSET) | (1 << MPU_USET) |
+                          (1 << MPU_APP_SET));
+#define g_mpu_data_region this_cpu_var_bmp(g_mpu_data_region)
+#define g_mpu_code_region this_cpu_var_bmp(g_mpu_code_region)
+#define g_mpu_set         this_cpu_var_bmp(g_mpu_set)
 
 /****************************************************************************
  * Private Functions
