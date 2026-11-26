@@ -152,6 +152,40 @@ SECTIONS
     KEEP(*(.eh_frame))
   } > pfls
 
+  /* Per-CPU data, one copy per CPU, initialized by the boot code */
+
+#ifdef CONFIG_PERCPU_SECTION
+
+  . = ALIGN(64);
+  _ldata_percpu = LOADADDR(.percpu_data);
+  .percpu_data :
+  {
+    _sdata_percpu = ABSOLUTE(.);
+    *(.data..percpu)
+    . = ALIGN(8);
+    _edata_percpu = ABSOLUTE(.);
+  } > DATA AT > pfls
+
+  .percpu_bss (NOLOAD) :
+  {
+    _sbss_percpu = ABSOLUTE(.);
+    *(.bss..percpu)
+    . = ALIGN(64);
+    _ebss_percpu = ABSOLUTE(.);
+  } > DATA
+
+  _percpu_size = _ebss_percpu - _sdata_percpu;
+  _percpu_offset = _percpu_size;
+
+  /* Reserve space for the copies of the other CPUs */
+
+  .percpu_reserved (NOLOAD) :
+  {
+    . = . + _percpu_size * (CONFIG_NCPUS - 1);
+  } > DATA
+
+#endif
+
   /* Initialized data, small data (A0) first, copied from flash at startup */
 
   .data :
