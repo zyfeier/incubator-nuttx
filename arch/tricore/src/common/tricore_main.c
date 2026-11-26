@@ -156,6 +156,10 @@ void tricore_main(void)
 {
   static volatile uint32_t g_sync_event;
 
+#ifdef CONFIG_BMP
+  tricore_percpu_init();
+#endif
+
 #ifdef CONFIG_ARCH_HAVE_FPU
   tricore_fpuinit();
 #endif

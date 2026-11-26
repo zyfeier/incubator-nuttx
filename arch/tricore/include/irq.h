@@ -186,7 +186,8 @@
  */
 
 #define TRICORE_CPUCALL_SRC(cpu) \
-  (&SRC_GPSR0_SR0 + (cpu) * TRICORE_SRCNUM_PER_GPSR + 7)
+  ((volatile uint32_t *)(TRICORE_SRC_GPSR_BASE + \
+   ((cpu) * TRICORE_SRCNUM_PER_GPSR + 7) * 4))
 #define TRICORE_CPUCALL_IRQNUM(cpu) \
   TRICORE_SRC2IRQ(TRICORE_CPUCALL_SRC(cpu))
 
