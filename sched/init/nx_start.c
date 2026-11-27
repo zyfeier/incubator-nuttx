@@ -437,7 +437,16 @@ static void idle_task_initialize(void)
 #ifdef CONFIG_SMP
       per_cpu_var_smp(g_assignedtasks, i) = tcb;
 #else
-      dq_addfirst((FAR dq_entry_t *)tcb, TLIST_HEAD(tcb));
+#  ifdef CONFIG_BMP
+      /* Only the IDLE task of the boot CPU enters the shared ready-to-run
+       * list; the other CPUs track theirs through g_running_tasks.
+       */
+
+      if (i == 0)
+#  endif
+        {
+          dq_addfirst((FAR dq_entry_t *)tcb, TLIST_HEAD(tcb));
+        }
 #endif
 
       /* Mark the idle task as the running task */

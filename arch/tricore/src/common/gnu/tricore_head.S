@@ -165,7 +165,10 @@ tricore_head:
 	mtcr	TRICORE_CPU_ISP, %d15
 	isync
 
-	/* Free CSA list from __csa_begin to __csa_end, LCX at the third last */
+	/* Free CSA list from __csa_begin to __csa_end, LCX at the third
+	 * last.  The secondary CPUs have their own lists in their DSPR
+	 * through the local window, which the release trampoline links.
+	 */
 
 	movh.a	%a15, hi:__csa_begin
 	lea	%a15, [%a15]lo:__csa_begin
@@ -337,3 +340,144 @@ __start:
 	movh.a	%a15, hi:tricore_head
 	lea	%a15, [%a15]lo:tricore_head
 	ji	%a15
+
+/****************************************************************************
+ * Name: tricore_secondary_start
+ *
+ * Description:
+ *   Entry of the secondary CPUs released by tricore_start.  Sets the
+ *   stack of the running CPU from g_idle_topstack[] and jumps to
+ *   tricore_secondary_entry.
+ *
+ ****************************************************************************/
+
+	.section .text, "ax", %progbits
+	.global	tricore_secondary_start
+	.type	tricore_secondary_start, %function
+tricore_secondary_start:
+	/* Mask the interrupts until this CPU has initialized its state:
+	 * a released core comes up with ICR.PIE enabled and the shared
+	 * vector table installed, so an early interrupt would run on
+	 * uninitialized per-CPU data.
+	 */
+
+	disable
+
+	/* Small data base registers, the same as tricore_head */
+
+	movh.a	%a1, hi:__a1_mem
+	lea	%a1, [%a1]lo:__a1_mem
+	movh.a	%a0, hi:__a0_mem
+	lea	%a0, [%a0]lo:__a0_mem
+	movh.a	%a8, hi:__a8_mem
+	lea	%a8, [%a8]lo:__a8_mem
+	movh.a	%a9, hi:__a9_mem
+	lea	%a9, [%a9]lo:__a9_mem
+
+	/* Trap and interrupt vectors, shared with CPU0 */
+
+	movh.a	%a15, hi:__TRAPTAB_CPU0
+	lea	%a15, [%a15]lo:__TRAPTAB_CPU0
+	mov.d	%d15, %a15
+	mtcr	TRICORE_CPU_BTV, %d15
+	isync
+
+	movh.a	%a15, hi:__INTTAB_CPU0
+	lea	%a15, [%a15]lo:__INTTAB_CPU0
+	mov.d	%d15, %a15
+	mtcr	TRICORE_CPU_BIV, %d15
+	isync
+
+	/* Caches on, matching what tricore_head does on CPU0 */
+
+	mov	%d15, 0
+	mtcr	TRICORE_CPU_PCON0, %d15
+	isync
+	mtcr	TRICORE_CPU_DCON0, %d15
+	isync
+
+	/* PSW: supervisor mode, call depth counting on */
+
+	mov	%d0, TRICORE_PSW_RESET
+	mtcr	TRICORE_CPU_PSW, %d0
+	isync
+
+	/* Free CSA list of this CPU in its own DSPR: the layout of CPU0,
+	 * the CSA region at the top of the window, mirrored to the base of
+	 * this CPU's window.  Every core resolves the compressed FCX links
+	 * against its own DSPR, so the hardware push and pop of the call
+	 * and return instructions round-trip without cross-core access.
+	 * LCX at the third last.
+	 */
+
+	mfcr	%d15, TRICORE_CPU_CORE_ID
+	and	%d15, %d15, 7
+	mov	%d13, 1
+	sh	%d13, %d15, 28
+	mov	%d12, 0
+	sub	%d13, %d12, %d13      /* per-CPU base offset from CPU0 */
+
+	movh.a	%a15, hi:__csa_begin
+	lea	%a15, [%a15]lo:__csa_begin
+	mov.d	%d14, %a15
+	add	%d14, %d14, %d13
+	mov.a	%a15, %d14
+
+	movh.a	%a14, hi:__csa_end
+	lea	%a14, [%a14]lo:__csa_end
+	mov.d	%d14, %a14
+	add	%d14, %d14, %d13
+	mov.a	%a14, %d14
+
+	mov.d	%d15, %a15
+	tricore_csa_link %d15, %d12, %d11
+	mtcr	TRICORE_CPU_FCX, %d15
+	isync
+1:
+	addi	%d15, %d15, 1
+	st.w	[%a15], %d15
+	lea	%a15, [%a15]64
+	jne.a	%a15, %a14, 1b
+
+	mov	%d14, 0
+	st.w	[%a15]-64, %d14
+	addi	%d15, %d15, -3
+	mtcr	TRICORE_CPU_LCX, %d15
+	isync
+
+	/* Stack of this CPU from g_idle_topstack[], which the linker
+	 * script fills with the top of the idle stack of every core, and
+	 * the interrupt stack of this CPU, the layout of CPU0 mirrored to
+	 * the base of this CPU's DSPR window.  In the UP build the CPU is
+	 * never released and the stack is the one of CPU0.
+	 */
+
+#ifndef CONFIG_UP
+	mfcr	%d15, TRICORE_CPU_CORE_ID
+	and	%d15, %d15, 7
+	movh.a	%a4, hi:g_idle_topstack
+	lea	%a4, [%a4]lo:g_idle_topstack
+	sh	%d14, %d15, 2
+	addsc.a	%a4, %a4, %d14, 0
+	ld.w	%d15, [%a4]0
+	mov.a	%sp, %d15
+	dsync
+#else
+	movh.a	%sp, hi:__ustack
+	lea	%sp, [%sp]lo:__ustack
+	dsync
+#endif
+
+	movh.a	%a15, hi:__istack
+	lea	%a15, [%a15]lo:__istack
+	mov.d	%d15, %a15
+	add	%d15, %d15, %d13
+	mtcr	TRICORE_CPU_ISP, %d15
+	isync
+
+	/* Enter the shared secondary entry */
+
+	movh.a	%a15, hi:tricore_secondary_entry
+	lea	%a15, [%a15]lo:tricore_secondary_entry
+	ji	%a15
+	.size	tricore_secondary_start, . - tricore_secondary_start

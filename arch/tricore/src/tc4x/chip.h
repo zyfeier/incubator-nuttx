@@ -43,14 +43,22 @@
  * in STM ticks (0: no timeout)
  */
 
-#define TRICORE_CORE_SYNC_MASK     0x01
-#define TRICORE_CORE_SYNC_TIMEOUT  0
+#ifdef CONFIG_BMP
+#  define TRICORE_CORE_SYNC_MASK   ((1u << CONFIG_NCPUS) - 1u)
+#else
+#  define TRICORE_CORE_SYNC_MASK   0x01
+#endif
+#define TRICORE_CORE_SYNC_TIMEOUT  100000
 
 /* Other cores that tricore_start releases, CPU1 to CPU5, and their PC and
  * boot halt registers
  */
 
-#define TRICORE_START_CORES        5
+#ifndef CONFIG_UP
+#  define TRICORE_START_CORES      (CONFIG_NCPUS - 1)
+#else
+#  define TRICORE_START_CORES      0
+#endif
 #define TRICORE_START_PC(n)        TC4X_CPU_HRA_PC(n)
 #define TRICORE_START_HALT(n)      TC4X_CPU_HRA_BOOTCON(n)
 #define TRICORE_START_BHALT        TC4X_BOOTCON_BHALT

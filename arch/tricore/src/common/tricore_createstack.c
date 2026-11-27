@@ -238,6 +238,17 @@ void tricore_stack_color(void *stackbase, size_t nbytes)
     }
 
   stkend = STACKFRAME_ALIGN_DOWN(stkend);
+
+  /* A stackbase above the stack end means a caller passed a bogus base,
+   * and the unsigned word count would wrap into a fill of the whole
+   * address space.  Refuse to color in that case.
+   */
+
+  if ((uintptr_t)stkptr >= stkend)
+    {
+      return;
+    }
+
   nwords = (stkend - (uintptr_t)stkptr) >> 2;
 
   /* Set the entire stack to the coloration value */

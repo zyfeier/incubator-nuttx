@@ -29,6 +29,7 @@
 #include <stdint.h>
 
 #include <nuttx/init.h>
+#include <nuttx/kmalloc.h>
 
 #include <arch/arch.h>
 
@@ -67,7 +68,9 @@ void tricore_percpu_init(void)
 #ifdef CONFIG_PERCPU_SECTION
   int cpu = up_cpu_index();
 
-  UNUSED(cpu);
+  /* Each core initializes the copy of its own DSPR: the per-CPU
+   * sections live at the offset of CPU0 in every core's window.
+   */
 
   memcpy((void *)((uintptr_t)_sdata_percpu + PERCPU_OFFSET * cpu),
          _ldata_percpu,
@@ -81,20 +84,9 @@ void tricore_percpu_init(void)
 
 #endif /* CONFIG_BMP */
 
-extern uintptr_t __start1[];
-extern uintptr_t __start2[];
-extern uintptr_t __start3[];
-extern uintptr_t __start4[];
-extern uintptr_t __start5[];
-
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-
-static uintptr_t * const g_tricore_entry[] =
-{
-  __start1, __start2, __start3, __start4, __start5
-};
 
 /****************************************************************************
  * Private Functions
@@ -157,7 +149,25 @@ void tricore_main(void)
   static volatile uint32_t g_sync_event;
 
 #ifdef CONFIG_BMP
+
+  /* Per-CPU copy of .data and .bss, then this CPU's own heap: each
+   * core's DSPR window holds the same layout as CPU0's, so the
+   * secondary CPUs take the heap of their window at the offset of
+   * CPU0's heap.  This runs before the core sync, so CPU0 initializes
+   * its heap only after the secondary heaps are up.
+   */
+
   tricore_percpu_init();
+  if (tricore_core_index() != 0)
+    {
+#ifdef MM_KERNEL_USRHEAP_INIT
+      uintptr_t base = 0x70000000u - 0x10000000u * tricore_core_index();
+      uintptr_t delta = base - 0x70000000u;
+
+      umm_initialize((FAR void *)((uintptr_t)_sheap + delta),
+                     (uintptr_t)_eheap - (uintptr_t)_sheap);
+#endif
+    }
 #endif
 
 #ifdef CONFIG_ARCH_HAVE_FPU
@@ -185,7 +195,14 @@ void tricore_main(void)
       nx_start();
     }
 
-  while (1);
+  /* The secondary CPUs park in the idle loop until the per-CPU
+   * scheduler picks them up.
+   */
+
+  for (; ; )
+    {
+      up_idle();
+    }
 }
 
 /****************************************************************************
@@ -195,10 +212,22 @@ void tricore_main(void)
  *   C entry of the startup, jumped to from tricore_head on CPU0 once the
  *   core registers, the CSA list, the watchdogs, the RAMs, the C runtime
  *   and the clocks are set up.  Release CPU1 to TRICORE_START_CORES at
- *   __start1 and on, the start of their own images, as the iLLD startup
- *   code does, and enter NuttX.
+ *   tricore_secondary_start, which sets the per-CPU stack, and enter
+ *   NuttX.
  *
  ****************************************************************************/
+
+extern void tricore_secondary_start(void);
+
+/* Entry of the secondary CPUs, jumped to from the trampoline after their
+ * per-CPU stack is set.  Runs the same path as CPU0: the per-CPU init,
+ * the core sync, then the idle loop (only CPU0 starts NuttX).
+ */
+
+void tricore_secondary_entry(void)
+{
+  tricore_main();
+}
 
 void tricore_start(void)
 {
@@ -206,7 +235,7 @@ void tricore_start(void)
 
   for (cpu = 1; cpu <= TRICORE_START_CORES; cpu++)
     {
-      uintptr_t pc = (uintptr_t)g_tricore_entry[cpu - 1];
+      uintptr_t pc = (uintptr_t)tricore_secondary_start;
 
       putreg32((getreg32(TRICORE_START_PC(cpu)) & 1) | (pc & ~1),
                TRICORE_START_PC(cpu));

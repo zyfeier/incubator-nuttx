@@ -40,6 +40,7 @@
 #  define TRICORE_STM_SRC(n)       (0xf4432028 + (n) * 0x40)  /* SR2 */
 
 #  define TRICORE_STM_ABS_OFFSET   0x20     /* 64-bit timer */
+#  define TRICORE_STM_TIM0_OFFSET  0x20     /* low half of the 64-bit timer */
 #  define TRICORE_STM_CMP0_OFFSET  0x120    /* Compare register 0 */
 #  define TRICORE_STM_CMCON_OFFSET 0x128    /* Compare match control */
 #  define TRICORE_STM_ICR_OFFSET   0x12c    /* Interrupt control */
