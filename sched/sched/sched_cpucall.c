@@ -1,5 +1,5 @@
 /****************************************************************************
- * sched/sched/sched_smp.c
+ * sched/sched/sched_cpucall.c
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -40,7 +40,7 @@
  * Private Types
  ****************************************************************************/
 
-struct smp_call_cookie_s
+struct cpu_call_cookie_s
 {
   sem_t       sem;
   int         error;
@@ -50,15 +50,15 @@ struct smp_call_cookie_s
  * Private Data
  ****************************************************************************/
 
-static sq_queue_t g_smp_call_queue[CONFIG_NCPUS];
-static spinlock_t g_smp_call_lock;
+static sq_queue_t g_cpu_call_queue[CONFIG_NCPUS];
+static spinlock_t g_cpu_call_lock;
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: nxsched_smp_call_add
+ * Name: nxsched_cpu_call_add
  *
  * Description:
  *   Add call data to other processors
@@ -72,19 +72,19 @@ static spinlock_t g_smp_call_lock;
  *
  ****************************************************************************/
 
-static void nxsched_smp_call_add(int cpu,
-                                 FAR struct smp_call_data_s *data)
+static void nxsched_cpu_call_add(int cpu,
+                                 FAR struct cpu_call_data_s *data)
 {
-  FAR sq_queue_t *call_queue = &g_smp_call_queue[cpu];
+  FAR sq_queue_t *call_queue = &g_cpu_call_queue[cpu];
   irqstate_t flags;
 
-  flags = spin_lock_irqsave(&g_smp_call_lock);
+  flags = spin_lock_irqsave(&g_cpu_call_lock);
   if (!sq_inqueue(&data->node[cpu], call_queue))
     {
       sq_addlast(&data->node[cpu], call_queue);
     }
 
-  spin_unlock_irqrestore(&g_smp_call_lock, flags);
+  spin_unlock_irqrestore(&g_cpu_call_lock, flags);
 }
 
 /****************************************************************************
@@ -92,7 +92,7 @@ static void nxsched_smp_call_add(int cpu,
  ****************************************************************************/
 
 /****************************************************************************
- * Name: nxsched_smp_call_handler
+ * Name: nxsched_cpu_call_handler
  *
  * Description:
  *   SMP function call handler
@@ -107,7 +107,7 @@ static void nxsched_smp_call_add(int cpu,
  *
  ****************************************************************************/
 
-int nxsched_smp_call_handler(int irq, FAR void *context,
+int nxsched_cpu_call_handler(int irq, FAR void *context,
                              FAR void *arg)
 {
   FAR sq_queue_t *call_queue;
@@ -115,23 +115,23 @@ int nxsched_smp_call_handler(int irq, FAR void *context,
   FAR sq_entry_t *next;
   int cpu = this_cpu();
 
-  irqstate_t flags = spin_lock_irqsave(&g_smp_call_lock);
+  irqstate_t flags = spin_lock_irqsave(&g_cpu_call_lock);
 
-  call_queue = &g_smp_call_queue[cpu];
+  call_queue = &g_cpu_call_queue[cpu];
 
   sq_for_every_safe(call_queue, curr, next)
     {
-      FAR struct smp_call_data_s *data =
-        container_of(curr, struct smp_call_data_s, node[cpu]);
+      FAR struct cpu_call_data_s *data =
+        container_of(curr, struct cpu_call_data_s, node[cpu]);
       int ret;
 
       sq_rem(&data->node[cpu], call_queue);
 
-      spin_unlock_irqrestore(&g_smp_call_lock, flags);
+      spin_unlock_irqrestore(&g_cpu_call_lock, flags);
 
       ret = data->func(data->arg);
 
-      flags = spin_lock_irqsave(&g_smp_call_lock);
+      flags = spin_lock_irqsave(&g_cpu_call_lock);
 
       if (data->cookie != NULL)
         {
@@ -144,12 +144,12 @@ int nxsched_smp_call_handler(int irq, FAR void *context,
         }
     }
 
-  spin_unlock_irqrestore(&g_smp_call_lock, flags);
+  spin_unlock_irqrestore(&g_cpu_call_lock, flags);
   return OK;
 }
 
 /****************************************************************************
- * Name: nxsched_smp_call_init
+ * Name: nxsched_cpu_call_init
  *
  * Description:
  *   Init call_data
@@ -164,18 +164,18 @@ int nxsched_smp_call_handler(int irq, FAR void *context,
  *
  ****************************************************************************/
 
-void nxsched_smp_call_init(FAR struct smp_call_data_s *data,
-                           nxsched_smp_call_t func, FAR void *arg)
+void nxsched_cpu_call_init(FAR struct cpu_call_data_s *data,
+                           nxsched_cpu_call_t func, FAR void *arg)
 {
   DEBUGASSERT(data != NULL && func != NULL);
 
-  memset(data, 0, sizeof(struct smp_call_data_s));
+  memset(data, 0, sizeof(struct cpu_call_data_s));
   data->func = func;
   data->arg = arg;
 }
 
 /****************************************************************************
- * Name: nxsched_smp_call_single
+ * Name: nxsched_cpu_call_single
  *
  * Description:
  *   Call function on single processor, wait function callback
@@ -190,18 +190,18 @@ void nxsched_smp_call_init(FAR struct smp_call_data_s *data,
  *
  ****************************************************************************/
 
-int nxsched_smp_call_single(int cpuid, nxsched_smp_call_t func,
+int nxsched_cpu_call_single(int cpuid, nxsched_cpu_call_t func,
                             FAR void *arg)
 {
   cpu_set_t cpuset;
 
   CPU_ZERO(&cpuset);
   CPU_SET(cpuid, &cpuset);
-  return nxsched_smp_call(cpuset, func, arg);
+  return nxsched_cpu_call(cpuset, func, arg);
 }
 
 /****************************************************************************
- * Name: nxsched_smp_call
+ * Name: nxsched_cpu_call
  *
  * Description:
  *   Call function on multi processors, wait function callback
@@ -216,11 +216,11 @@ int nxsched_smp_call_single(int cpuid, nxsched_smp_call_t func,
  *
  ****************************************************************************/
 
-int nxsched_smp_call(cpu_set_t cpuset, nxsched_smp_call_t func,
+int nxsched_cpu_call(cpu_set_t cpuset, nxsched_cpu_call_t func,
                      FAR void *arg)
 {
-  struct smp_call_data_s data;
-  struct smp_call_cookie_s cookie;
+  struct cpu_call_data_s data;
+  struct cpu_call_cookie_s cookie;
   int cpucnt;
   int ret = OK;
   int i;
@@ -228,12 +228,12 @@ int nxsched_smp_call(cpu_set_t cpuset, nxsched_smp_call_t func,
   /* Cannot wait in interrupt context. */
 
   DEBUGASSERT(!up_interrupt_context());
-  nxsched_smp_call_init(&data, func, arg);
+  nxsched_cpu_call_init(&data, func, arg);
   cookie.error = 0;
   nxsem_init(&cookie.sem, 0, 0);
 
   data.cookie = &cookie;
-  ret = nxsched_smp_call_async(cpuset, &data);
+  ret = nxsched_cpu_call_async(cpuset, &data);
 
   if (ret < 0)
     {
@@ -263,7 +263,7 @@ int nxsched_smp_call(cpu_set_t cpuset, nxsched_smp_call_t func,
 }
 
 /****************************************************************************
- * Name: nxsched_smp_call_single_async
+ * Name: nxsched_cpu_call_single_async
  *
  * Description:
  *   Call function on single processor async
@@ -277,18 +277,18 @@ int nxsched_smp_call(cpu_set_t cpuset, nxsched_smp_call_t func,
  *
  ****************************************************************************/
 
-int nxsched_smp_call_single_async(int cpuid,
-                                  FAR struct smp_call_data_s *data)
+int nxsched_cpu_call_single_async(int cpuid,
+                                  FAR struct cpu_call_data_s *data)
 {
   cpu_set_t cpuset;
 
   CPU_ZERO(&cpuset);
   CPU_SET(cpuid, &cpuset);
-  return nxsched_smp_call_async(cpuset, data);
+  return nxsched_cpu_call_async(cpuset, data);
 }
 
 /****************************************************************************
- * Name: nxsched_smp_call_async
+ * Name: nxsched_cpu_call_async
  *
  * Description:
  *   Call function on multi processors async
@@ -302,8 +302,8 @@ int nxsched_smp_call_single_async(int cpuid,
  *
  ****************************************************************************/
 
-int nxsched_smp_call_async(cpu_set_t cpuset,
-                           FAR struct smp_call_data_s *data)
+int nxsched_cpu_call_async(cpu_set_t cpuset,
+                           FAR struct cpu_call_data_s *data)
 {
   int cpucnt;
   int ret = OK;
@@ -342,7 +342,7 @@ int nxsched_smp_call_async(cpu_set_t cpuset,
     {
       if (CPU_ISSET(i, &cpuset))
         {
-          nxsched_smp_call_add(i, data);
+          nxsched_cpu_call_add(i, data);
           if (--cpucnt == 0)
             {
               break;
@@ -350,7 +350,7 @@ int nxsched_smp_call_async(cpu_set_t cpuset,
         }
     }
 
-  up_send_smp_call(cpuset);
+  up_send_cpu_call(cpuset);
 
 out:
   if (!up_interrupt_context())

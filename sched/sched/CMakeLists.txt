@@ -122,8 +122,8 @@ if(CONFIG_SCHED_DUMP_ON_EXIT)
   list(APPEND SRCS sched_dumponexit.c)
 endif()
 
-if(CONFIG_SMP)
-  list(APPEND SRCS sched_smp.c)
+if(NOT CONFIG_UP)
+  list(APPEND SRCS sched_cpucall.c)
 endif()
 
 target_sources(sched PRIVATE ${SRCS})

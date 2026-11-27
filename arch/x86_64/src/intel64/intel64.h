@@ -369,7 +369,7 @@ void vector_irq255(void);
 #ifdef CONFIG_SMP
 /* SMP call and scheduler IPI handlers (intel64_smpcall.c) */
 
-int x86_64_smp_call_handler(int irq, void *c, void *arg);
+int x86_64_cpu_call_handler(int irq, void *c, void *arg);
 int x86_64_smp_sched_handler(int irq, void *c, void *arg);
 #endif
 

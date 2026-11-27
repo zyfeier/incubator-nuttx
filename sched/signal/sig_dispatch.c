@@ -187,7 +187,7 @@ static int nxsig_queue_action(FAR struct tcb_s *stcb,
                       arg.need_restore   = true;
                     }
 
-                  nxsched_smp_call_single(stcb->cpu, sig_handler, &arg);
+                  nxsched_cpu_call_single(stcb->cpu, sig_handler, &arg);
                 }
               else
 #endif

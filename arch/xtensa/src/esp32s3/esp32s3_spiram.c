@@ -119,8 +119,8 @@ static uint32_t page0_page = INVALID_PHY_PAGE;
 
 #ifdef CONFIG_SMP
 static int pause_cpu_handler(void *cookie);
-static struct smp_call_data_s g_call_data =
-SMP_CALL_INITIALIZER(pause_cpu_handler, NULL);
+static struct cpu_call_data_s g_call_data =
+CPU_CALL_INITIALIZER(pause_cpu_handler, NULL);
 #endif
 
 #ifdef CONFIG_XTENSA_EXTMEM_BSS
@@ -232,6 +232,7 @@ static inline bool mmu_check_valid_ext_vaddr_region(uint32_t vaddr_start,
                 SOC_ADDRESS_IN_IRAM0_CACHE(vaddr_end)) |
                (SOC_ADDRESS_IN_DRAM0_CACHE(vaddr_start) &&
                 SOC_ADDRESS_IN_DRAM0_CACHE(vaddr_end));
+
   return valid;
 }
 
@@ -264,6 +265,7 @@ static int IRAM_ATTR esp_mmu_map_region(uint32_t vaddr, uint32_t paddr,
   uint32_t entry_id;
   uint32_t page_num = (len + MMU_PAGE_SIZE - 1) / MMU_PAGE_SIZE;
   uint32_t ret = page_num * MMU_PAGE_SIZE;
+
   mmu_val = paddr >> 16;
   bool write_back = false;
 
@@ -350,7 +352,7 @@ int IRAM_ATTR cache_dbus_mmu_map(int vaddr, int paddr, int num)
     {
       g_cpu_wait  = true;
       g_cpu_pause = false;
-      nxsched_smp_call_single_async(other_cpu, &g_call_data);
+      nxsched_cpu_call_single_async(other_cpu, &g_call_data);
       while (!g_cpu_pause);
     }
 
@@ -402,6 +404,7 @@ int IRAM_ATTR esp_spiram_init_cache(void)
   uint32_t ext_bss_size = 0;
 
   int ret = psram_get_available_size(&psram_size);
+
   if (ret != OK)
     {
       abort();

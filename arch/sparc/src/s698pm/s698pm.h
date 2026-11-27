@@ -412,7 +412,7 @@ void gpio_irqdisable(int irq);
 #endif
 
 /****************************************************************************
- * Name: s698pm_smp_call_handler
+ * Name: s698pm_cpu_call_handler
  *
  * Description:
  *   This is the handler for SMP_CALL.
@@ -420,7 +420,7 @@ void gpio_irqdisable(int irq);
  ****************************************************************************/
 
 #ifdef CONFIG_SMP
-int s698pm_smp_call_handler(int irq, void *c, void *arg);
+int s698pm_cpu_call_handler(int irq, void *c, void *arg);
 #endif
 
 #if defined(__cplusplus)

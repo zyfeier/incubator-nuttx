@@ -73,7 +73,7 @@
 
 static volatile bool g_appdsp_boot;
 
-extern int cxd56_smp_call_handler(int irq, void *c, void *arg);
+extern int cxd56_cpu_call_handler(int irq, void *c, void *arg);
 
 /****************************************************************************
  * Private Functions
@@ -118,8 +118,8 @@ static void appdsp_boot(void)
 
   /* Enable SW_INT */
 
-  irq_attach(CXD56_IRQ_SMP_CALL, cxd56_smp_call_handler, NULL);
-  up_enable_irq(CXD56_IRQ_SMP_CALL);
+  irq_attach(CXD56_IRQ_CPU_CALL, cxd56_cpu_call_handler, NULL);
+  up_enable_irq(CXD56_IRQ_CPU_CALL);
 
   g_appdsp_boot = true;
 
@@ -207,6 +207,7 @@ int up_cpu_start(int cpu)
   for (i = 0; i < 12; i++)
     {
       uint32_t val = getreg32(CXD56_ACNV_P0_DST0 + (4 * i));
+
       putreg32(val, CXD56_ACNV_P0_DST0 + (4 * i) + (cpu * 0x20));
     }
 
@@ -231,8 +232,8 @@ int up_cpu_start(int cpu)
 
       /* Setup SW_INT for this APP_DSP0 */
 
-      irq_attach(CXD56_IRQ_SMP_CALL, cxd56_smp_call_handler, NULL);
-      up_enable_irq(CXD56_IRQ_SMP_CALL);
+      irq_attach(CXD56_IRQ_CPU_CALL, cxd56_cpu_call_handler, NULL);
+      up_enable_irq(CXD56_IRQ_CPU_CALL);
     }
 
   while (!g_appdsp_boot);

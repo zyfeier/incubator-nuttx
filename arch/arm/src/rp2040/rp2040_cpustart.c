@@ -68,7 +68,7 @@
 
 static volatile bool g_core1_boot;
 
-extern int rp2040_smp_call_handler(int irq, void *c, void *arg);
+extern int rp2040_cpu_call_handler(int irq, void *c, void *arg);
 
 /****************************************************************************
  * Private Functions
@@ -112,12 +112,17 @@ static int fifo_comm(uint32_t msg)
   uint32_t rcv;
 
   while (!(getreg32(RP2040_SIO_FIFO_ST) & RP2040_SIO_FIFO_ST_RDY))
-    ;
+    {
+      ;
+    }
+
   putreg32(msg, RP2040_SIO_FIFO_WR);
   __asm__ volatile ("sev");
 
   while (!(getreg32(RP2040_SIO_FIFO_ST) & RP2040_SIO_FIFO_ST_VLD))
-    __asm__ volatile ("wfe");
+    {
+      __asm__ volatile ("wfe");
+    }
 
   rcv = getreg32(RP2040_SIO_FIFO_RD);
 
@@ -152,8 +157,8 @@ static void core1_boot(void)
 
   /* Enable inter-processor FIFO interrupt */
 
-  irq_attach(RP2040_SMP_CALL_PROC1, rp2040_smp_call_handler, NULL);
-  up_enable_irq(RP2040_SMP_CALL_PROC1);
+  irq_attach(RP2040_CPU_CALL_PROC1, rp2040_cpu_call_handler, NULL);
+  up_enable_irq(RP2040_CPU_CALL_PROC1);
 
   g_core1_boot = true;
 
@@ -217,7 +222,10 @@ int up_cpu_start(int cpu)
 
   setbits_reg32(RP2040_PSM_PROC1, RP2040_PSM_FRCE_OFF);
   while (!(getreg32(RP2040_PSM_FRCE_OFF) & RP2040_PSM_PROC1))
-    ;
+    {
+      ;
+    }
+
   clrbits_reg32(RP2040_PSM_PROC1, RP2040_PSM_FRCE_OFF);
 
   /* Send initial VTOR, MSP, PC for Core 1 boot */
@@ -246,8 +254,8 @@ int up_cpu_start(int cpu)
 
   /* Enable inter-processor FIFO interrupt */
 
-  irq_attach(RP2040_SMP_CALL_PROC0, rp2040_smp_call_handler, NULL);
-  up_enable_irq(RP2040_SMP_CALL_PROC0);
+  irq_attach(RP2040_CPU_CALL_PROC0, rp2040_cpu_call_handler, NULL);
+  up_enable_irq(RP2040_CPU_CALL_PROC0);
 
   while (!g_core1_boot);
 

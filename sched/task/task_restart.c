@@ -244,7 +244,7 @@ static int nxtask_restart(pid_t pid)
           arg.need_restore = true;
         }
 
-      nxsched_smp_call_single(tcb->cpu, restart_handler, &arg);
+      nxsched_cpu_call_single(tcb->cpu, restart_handler, &arg);
 
       tcb = nxsched_get_tcb(pid);
       if (!tcb || tcb->task_state != TSTATE_TASK_INVALID ||

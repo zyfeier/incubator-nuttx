@@ -147,8 +147,8 @@ static FAR const char * const g_ttypenames[4] =
 #endif
 
 #ifdef CONFIG_SMP
-static struct smp_call_data_s g_call_data =
-SMP_CALL_INITIALIZER(pause_cpu_handler, NULL);
+static struct cpu_call_data_s g_call_data =
+CPU_CALL_INITIALIZER(pause_cpu_handler, NULL);
 #endif
 
 static DEFINE_PER_CPU_BSS(last_regs_t, g_last_regs)
@@ -689,7 +689,7 @@ static void pause_all_cpu(void)
   int ncpus = 0;
 
   CPU_CLR(this_cpu(), &cpuset);
-  nxsched_smp_call_async(cpuset, &g_call_data);
+  nxsched_cpu_call_async(cpuset, &g_call_data);
   this_cpu_var_smp(g_cpu_paused) = true;
 
   /* Check if all CPUs paused with timeout */

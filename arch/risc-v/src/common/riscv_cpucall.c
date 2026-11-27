@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/sam34/sam4cm_smpcall.c
+ * arch/risc-v/src/common/riscv_cpucall.c
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -37,23 +37,12 @@
 #include <nuttx/sched_note.h>
 
 #include "sched/sched.h"
-#include "arm_internal.h"
-#include "hardware/sam4cm_ipc.h"
-
-#ifdef CONFIG_SMP
-
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-#if 0
-#  define DPRINTF(fmt, args...) _err(fmt, ##args)
-#else
-#  define DPRINTF(fmt, args...) do {} while (0)
-#endif
+#include "riscv_internal.h"
+#include "riscv_ipi.h"
+#include "chip.h"
 
 /****************************************************************************
- * Private Data
+ * Public Data
  ****************************************************************************/
 
 /****************************************************************************
@@ -61,35 +50,29 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: sam4cm_smp_call_handler
+ * Name: riscv_cpu_call_handler
  *
  * Description:
  *   This is the handler for SMP_CALL.
  *
  ****************************************************************************/
 
-int sam4cm_smp_call_handler(int irq, void *c, void *arg)
+int riscv_cpu_call_handler(int irq, void *c, void *arg)
 {
+  struct tcb_s *tcb;
   int cpu = this_cpu();
 
-  nxsched_smp_call_handler(irq, c, arg);
+  nxsched_cpu_call_handler(irq, c, arg);
 
-  /* Clear : Pause IRQ */
+  /* Clear IPI (Inter-Processor-Interrupt) */
 
-  /* IPC Interrupt Clear Command Register (write-only) */
+  riscv_ipi_clear(cpu);
 
-  if (1 == cpu)
-    {
-      DPRINTF("CPU0 -> CPU1\n");
-      putreg32(0x1, SAM_IPC1_ICCR);
-    }
-  else
-    {
-      DPRINTF("CPU1 -> CPU0\n");
-      putreg32(0x1, SAM_IPC0_ICCR);
-    }
-
+  tcb = current_task(cpu);
+  riscv_savecontext(tcb);
   nxsched_process_delivered(cpu);
+  tcb = current_task(cpu);
+  riscv_restorecontext(tcb);
 
   return OK;
 }
@@ -117,22 +100,13 @@ int up_send_smp_sched(int cpu)
 {
   /* Execute Pause IRQ to CPU(cpu) */
 
-  /* Set IPC Interrupt (IRQ0) (write-only) */
-
-  if (cpu == 1)
-    {
-      putreg32(0x1, SAM_IPC1_ISCR);
-    }
-  else
-    {
-      putreg32(0x1, SAM_IPC0_ISCR);
-    }
+  riscv_ipi_send(cpu);
 
   return OK;
 }
 
 /****************************************************************************
- * Name: up_send_smp_call
+ * Name: up_send_cpu_call
  *
  * Description:
  *   Send smp call to target cpu.
@@ -145,7 +119,7 @@ int up_send_smp_sched(int cpu)
  *
  ****************************************************************************/
 
-void up_send_smp_call(cpu_set_t cpuset)
+void up_send_cpu_call(cpu_set_t cpuset)
 {
   int cpu;
 
@@ -155,5 +129,3 @@ void up_send_smp_call(cpu_set_t cpuset)
       up_send_smp_sched(cpu);
     }
 }
-
-#endif /* CONFIG_SMP */

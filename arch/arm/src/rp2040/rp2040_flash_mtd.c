@@ -123,7 +123,7 @@ struct smp_isolation_data_s
   volatile spinlock_t cpu_wait;
   volatile spinlock_t cpu_pause;
   volatile spinlock_t cpu_resume;
-  struct smp_call_data_s call_data;
+  struct cpu_call_data_s call_data;
 };
 
 struct smp_isolation_s
@@ -296,7 +296,7 @@ static void enter_smp_isolation(struct smp_isolation_s *const data)
 {
   struct smp_isolation_data_s *cpu_data;
 
-  /* TODO: remove "sched_lock" after "nxsched_smp_call_async" does not try to
+  /* TODO: remove "sched_lock" after "nxsched_cpu_call_async" does not try to
    * run the handler directly anymore, if the current CPU is part of the
    * given cpuset.
    */
@@ -318,9 +318,9 @@ static void enter_smp_isolation(struct smp_isolation_s *const data)
           spin_unlock(&cpu_data->cpu_resume);
         }
 
-      nxsched_smp_call_init(&cpu_data->call_data, pause_cpu_handler,
+      nxsched_cpu_call_init(&cpu_data->call_data, pause_cpu_handler,
                             cpu_data);
-      nxsched_smp_call_single_async(other_cpuid, &cpu_data->call_data);
+      nxsched_cpu_call_single_async(other_cpuid, &cpu_data->call_data);
     }
 
   /* Wait until all other CPUs are paused. */
@@ -457,6 +457,7 @@ static int     rp2040_flash_erase(struct mtd_dev_s *dev,
 
 #ifdef CONFIG_SMP
   struct smp_isolation_s smp_isolation;
+
   init_smp_isolation(&smp_isolation);
 #endif
 
@@ -545,6 +546,7 @@ static ssize_t rp2040_flash_block_write(struct mtd_dev_s *dev,
 
 #ifdef CONFIG_SMP
   struct smp_isolation_s smp_isolation;
+
   init_smp_isolation(&smp_isolation);
 #endif
 
@@ -583,7 +585,7 @@ static ssize_t rp2040_flash_block_write(struct mtd_dev_s *dev,
           printf("%02x, ", buffer[i + j]);
         }
 
-        printf("\n");
+      printf("\n");
     }
 #endif
 
@@ -634,7 +636,7 @@ static ssize_t rp2040_flash_byte_read(struct mtd_dev_s *dev,
       printf("%02x, ", buffer[j]);
     }
 
-    printf("\n");
+  printf("\n");
 #endif
 
   /* Update the file position */

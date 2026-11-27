@@ -77,8 +77,8 @@ static bool spiram_inited = false;
 
 #ifdef CONFIG_SMP
 static int pause_cpu_handler(void *cookie);
-static struct smp_call_data_s g_call_data =
-SMP_CALL_INITIALIZER(pause_cpu_handler, NULL);
+static struct cpu_call_data_s g_call_data =
+CPU_CALL_INITIALIZER(pause_cpu_handler, NULL);
 #endif
 
 /****************************************************************************
@@ -212,11 +212,11 @@ unsigned int IRAM_ATTR cache_sram_mmu_set(int cpu_no, int pid,
       cpu_to_stop = this_cpu() == 1 ? 0 : 1;
       g_cpu_wait  = true;
       g_cpu_pause = false;
-      nxsched_smp_call_single_async(cpu_to_stop, &g_call_data);
+      nxsched_cpu_call_single_async(cpu_to_stop, &g_call_data);
       while (!g_cpu_pause);
     }
 
-    spi_flash_disable_cache(1, 0);
+  spi_flash_disable_cache(1, 0);
 #endif
 
   spi_flash_disable_cache(0, 0);
@@ -352,24 +352,25 @@ int esp_spiram_get_chip_size(void)
 
   psram_size = psram_get_size();
   switch (psram_size)
-  {
-    case PSRAM_SIZE_16MBITS:
-      return ESP_SPIRAM_SIZE_16MBITS;
+    {
+      case PSRAM_SIZE_16MBITS:
+        return ESP_SPIRAM_SIZE_16MBITS;
 
-    case PSRAM_SIZE_32MBITS:
-      return ESP_SPIRAM_SIZE_32MBITS;
+      case PSRAM_SIZE_32MBITS:
+        return ESP_SPIRAM_SIZE_32MBITS;
 
-    case PSRAM_SIZE_64MBITS:
-      return ESP_SPIRAM_SIZE_64MBITS;
+      case PSRAM_SIZE_64MBITS:
+        return ESP_SPIRAM_SIZE_64MBITS;
 
-    default:
-      return ESP_SPIRAM_SIZE_INVALID;
-  }
+      default:
+        return ESP_SPIRAM_SIZE_INVALID;
+    }
 }
 
 int esp_spiram_init(void)
 {
   int ret;
+
   ret = psram_enable(PSRAM_SPEED, PSRAM_MODE);
   if (ret != OK)
     {

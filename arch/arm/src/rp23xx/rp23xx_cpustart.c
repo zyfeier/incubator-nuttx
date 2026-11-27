@@ -70,7 +70,7 @@
 
 static volatile bool g_core1_boot;
 
-extern int rp23xx_smp_call_handler(int irq, void *c, void *arg);
+extern int rp23xx_cpu_call_handler(int irq, void *c, void *arg);
 
 /****************************************************************************
  * Private Functions
@@ -167,7 +167,7 @@ static void core1_boot(void)
 
   /* Enable inter-processor FIFO interrupt */
 
-  irq_attach(RP23XX_SIO_IRQ_FIFO, rp23xx_smp_call_handler, NULL);
+  irq_attach(RP23XX_SIO_IRQ_FIFO, rp23xx_cpu_call_handler, NULL);
   up_enable_irq(RP23XX_SIO_IRQ_FIFO);
 
   g_core1_boot = true;
@@ -260,7 +260,7 @@ int up_cpu_start(int cpu)
 
   /* Enable inter-processor FIFO interrupt */
 
-  irq_attach(RP23XX_SIO_IRQ_FIFO, rp23xx_smp_call_handler, NULL);
+  irq_attach(RP23XX_SIO_IRQ_FIFO, rp23xx_cpu_call_handler, NULL);
   up_enable_irq(RP23XX_SIO_IRQ_FIFO);
 
   while (!g_core1_boot);

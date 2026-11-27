@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/lc823450/lc823450_smpcall.c
+ * arch/xtensa/src/common/xtensa_cpucall.c
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -28,30 +28,19 @@
 
 #include <stdint.h>
 #include <assert.h>
-#include <nuttx/debug.h>
-#include <string.h>
-#include <stdio.h>
 
 #include <nuttx/arch.h>
+#include <nuttx/sched.h>
 #include <nuttx/spinlock.h>
 #include <nuttx/sched_note.h>
 
+#include "xtensa.h"
 #include "sched/sched.h"
-#include "arm_internal.h"
-#include "lc823450_intc.h"
+
+#ifdef CONFIG_SMP
 
 /****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-#if 0
-#define DPRINTF(fmt, args...) llinfo(fmt, ##args)
-#else
-#define DPRINTF(fmt, args...) do {} while (0)
-#endif
-
-/****************************************************************************
- * Public Data
+ * Private Data
  ****************************************************************************/
 
 /****************************************************************************
@@ -59,35 +48,17 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: lc823450_smp_call_handler
+ * Name: xtensa_cpu_call_handler
  *
  * Description:
- *   This is the handler for SMP_CALL.
+ *   This is the handler for smp.
  *
  ****************************************************************************/
 
-int lc823450_smp_call_handler(int irq, void *c, void *arg)
+void xtensa_cpu_call_handler(int irq, void *context, void *arg)
 {
-  int cpu = this_cpu();
-
-  nxsched_smp_call_handler(irq, c, arg);
-
-  /* Clear : Pause IRQ */
-
-  if (irq == LC823450_IRQ_SMP_CALL_01)
-    {
-      DPRINTF("CPU0 -> CPU1\n");
-      putreg32(IPICLR_INTISR0_CLR_1, IPICLR);
-    }
-  else
-    {
-      DPRINTF("CPU1 -> CPU0\n");
-      putreg32(IPICLR_INTISR1_CLR_1, IPICLR);
-    }
-
-  nxsched_process_delivered(cpu);
-
-  return OK;
+  nxsched_cpu_call_handler(irq, context, arg);
+  nxsched_process_delivered(this_cpu());
 }
 
 /****************************************************************************
@@ -111,22 +82,15 @@ int lc823450_smp_call_handler(int irq, void *c, void *arg)
 
 int up_send_smp_sched(int cpu)
 {
-  /* Execute Pause IRQ to CPU(cpu) */
+  /* Execute the intercpu interrupt */
 
-  if (cpu == 1)
-    {
-      putreg32(IPIREG_INTISR0_1, IPIREG);
-    }
-  else
-    {
-      putreg32(IPIREG_INTISR1_1, IPIREG);
-    }
+  xtensa_intercpu_interrupt(cpu, CPU_INTCODE_PAUSE);
 
   return OK;
 }
 
 /****************************************************************************
- * Name: up_send_smp_call
+ * Name: up_send_cpu_call
  *
  * Description:
  *   Send smp call to target cpu.
@@ -139,7 +103,7 @@ int up_send_smp_sched(int cpu)
  *
  ****************************************************************************/
 
-void up_send_smp_call(cpu_set_t cpuset)
+void up_send_cpu_call(cpu_set_t cpuset)
 {
   int cpu;
 
@@ -149,3 +113,5 @@ void up_send_smp_call(cpu_set_t cpuset)
       up_send_smp_sched(cpu);
     }
 }
+
+#endif /* CONFIG_SMP */

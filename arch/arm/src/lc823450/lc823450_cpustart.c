@@ -70,7 +70,7 @@ static volatile bool g_cpu_wait[CONFIG_SMP_NCPUS];
  * Private Functions
  ****************************************************************************/
 
-extern int lc823450_smp_call_handler(int irq, void *c, void *arg);
+extern int lc823450_cpu_call_handler(int irq, void *c, void *arg);
 
 /****************************************************************************
  * Name: cpu1_boot
@@ -109,8 +109,8 @@ static void cpu1_boot(void)
       up_enable_irq(LC823450_IRQ_MEMFAULT);
 #endif
 
-      irq_attach(LC823450_IRQ_SMP_CALL_01, lc823450_smp_call_handler, NULL);
-      up_enable_irq(LC823450_IRQ_SMP_CALL_01);
+      irq_attach(LC823450_IRQ_CPU_CALL_01, lc823450_cpu_call_handler, NULL);
+      up_enable_irq(LC823450_IRQ_CPU_CALL_01);
     }
 
   g_cpu_wait[0] = true;
@@ -194,8 +194,8 @@ int up_cpu_start(int cpu)
 
   /* IRQ setup CPU1->CPU0 */
 
-  irq_attach(LC823450_IRQ_SMP_CALL_11, lc823450_smp_call_handler, NULL);
-  up_enable_irq(LC823450_IRQ_SMP_CALL_11);
+  irq_attach(LC823450_IRQ_CPU_CALL_11, lc823450_cpu_call_handler, NULL);
+  up_enable_irq(LC823450_IRQ_CPU_CALL_11);
 
   while (!g_cpu_wait[0]);
 

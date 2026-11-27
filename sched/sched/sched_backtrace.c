@@ -190,7 +190,7 @@ int sched_backtrace(pid_t tid, FAR void **buffer, int size, int skip)
                   arg.need_restore = need_restore &&
                                       arg.size == size - ret;
 
-                  if (nxsched_smp_call_single(tcb->cpu,
+                  if (nxsched_cpu_call_single(tcb->cpu,
                                               sched_backtrace_handler,
                                               &arg) < 0)
                     {
@@ -225,7 +225,7 @@ int sched_backtrace(pid_t tid, FAR void **buffer, int size, int skip)
                 {
                   arg.size = 0;
                   arg.need_restore = true;
-                  nxsched_smp_call_single(tcb->cpu, sched_backtrace_handler,
+                  nxsched_cpu_call_single(tcb->cpu, sched_backtrace_handler,
                                           &arg);
                 }
 #else
@@ -233,7 +233,7 @@ int sched_backtrace(pid_t tid, FAR void **buffer, int size, int skip)
               arg.buffer = buffer;
               arg.size = size;
               arg.skip = skip;
-              ret = nxsched_smp_call_single(tcb->cpu,
+              ret = nxsched_cpu_call_single(tcb->cpu,
                                             sched_backtrace_handler,
                                             &arg) < 0 ? 0 : arg.stacksize;
 #endif

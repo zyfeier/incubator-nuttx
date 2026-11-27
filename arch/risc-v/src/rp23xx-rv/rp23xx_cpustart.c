@@ -106,12 +106,17 @@ static int fifo_comm(uint32_t msg)
   uint32_t rcv;
 
   while (!(getreg32(RP23XX_SIO_FIFO_ST) & RP23XX_SIO_FIFO_ST_RDY))
-    ;
+    {
+      ;
+    }
+
   putreg32(msg, RP23XX_SIO_FIFO_WR);
   hazard3_unblock();
 
   while (!(getreg32(RP23XX_SIO_FIFO_ST) & RP23XX_SIO_FIFO_ST_VLD))
-  hazard3_block();
+    {
+      hazard3_block();
+    }
 
   rcv = getreg32(RP23XX_SIO_FIFO_RD);
 
@@ -142,7 +147,7 @@ static void core1_boot(void)
 
   /* Enable inter-processor FIFO interrupt */
 
-  irq_attach(RP23XX_SIO_IRQ_FIFO, riscv_smp_call_handler, NULL);
+  irq_attach(RP23XX_SIO_IRQ_FIFO, riscv_cpu_call_handler, NULL);
   up_enable_irq(RP23XX_SIO_IRQ_FIFO);
 
   g_core1_boot = true;
@@ -209,7 +214,10 @@ int up_cpu_start(int cpu)
 
   setbits_reg32(RP23XX_PSM_PROC1, RP23XX_PSM_FRCE_OFF);
   while (!(getreg32(RP23XX_PSM_FRCE_OFF) & RP23XX_PSM_PROC1))
-    ;
+    {
+      ;
+    }
+
   clrbits_reg32(RP23XX_PSM_PROC1, RP23XX_PSM_FRCE_OFF);
 
   core1_boot_msg[0] = 0;
@@ -237,7 +245,7 @@ int up_cpu_start(int cpu)
 
   /* Enable inter-processor FIFO interrupt */
 
-  irq_attach(RP23XX_SIO_IRQ_FIFO, riscv_smp_call_handler, NULL);
+  irq_attach(RP23XX_SIO_IRQ_FIFO, riscv_cpu_call_handler, NULL);
   up_enable_irq(RP23XX_SIO_IRQ_FIFO);
 
   /* Spin until Core 1 signals that it has finished its initialisation */

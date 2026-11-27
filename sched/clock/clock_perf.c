@@ -59,7 +59,7 @@ struct perf_s
 {
   struct wdog_s wdog;
 #ifdef CONFIG_SMP
-  struct smp_call_data_s call;
+  struct cpu_call_data_s call;
 #endif
   unsigned long last;
   clock_t overflow;
@@ -101,7 +101,7 @@ static void perf_update(wdparm_t arg)
 #ifdef CONFIG_SMP
   /* The watchdog can run on any CPU: read the counter of the state's CPU */
 
-  nxsched_smp_call_single_async(perf - g_perf, &perf->call);
+  nxsched_cpu_call_single_async(perf - g_perf, &perf->call);
 #else
   perf_gettime();
 #endif
@@ -131,7 +131,7 @@ clock_t perf_gettime(void)
         TICK_PER_SEC / up_perf_getfreq();
 
 #ifdef CONFIG_SMP
-      nxsched_smp_call_init(&perf->call, perf_update_cpu, NULL);
+      nxsched_cpu_call_init(&perf->call, perf_update_cpu, NULL);
 #endif
 
       /* Periodic check for overflow */

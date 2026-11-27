@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/cxd56xx/cxd56_smpcall.c
+ * arch/arm/src/rp23xx/rp23xx_cpucall.c
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -38,7 +38,7 @@
 
 #include "sched/sched.h"
 #include "arm_internal.h"
-#include "hardware/cxd5602_memorymap.h"
+#include "hardware/rp23xx_sio.h"
 
 #ifdef CONFIG_SMP
 
@@ -47,72 +47,35 @@
  ****************************************************************************/
 
 #if 0
-#  define DPRINTF(fmt, args...) _err(fmt, ##args)
+#define DPRINTF(fmt, args...) llinfo(fmt, ##args)
 #else
-#  define DPRINTF(fmt, args...) do {} while (0)
+#define DPRINTF(fmt, args...) do {} while (0)
 #endif
 
-#define CXD56_CPU_P2_INT        (CXD56_SWINT_BASE + 0x8)  /* for APP_DSP0 */
-
 /****************************************************************************
- * Private Data
- ****************************************************************************/
-
-static volatile int g_irq_to_handle[CONFIG_SMP_NCPUS][2];
-
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
-
-/****************************************************************************
- * Name: handle_irqreq
+ * Name: rp23xx_handle_irqreq
  *
  * Description:
  *   If an irq handling request is found on cpu, call up_enable_irq() or
- *   up_disable_irq(), then return true.
+ *   up_disable_irq().
  *
  * Input Parameters:
- *   cpu - The index of the CPU to be queried
- *
- * Returned Value:
- *   true  = an irq handling request is found
- *   false = no irq handling request is found
+ *   irqreq - The IRQ number to be handled (>0 : enable / <0 : disable)
  *
  ****************************************************************************/
 
-static bool handle_irqreq(int cpu)
+static void rp23xx_handle_irqreq(int irqreq)
 {
-  int i;
-  bool handled = false;
+  DEBUGASSERT(this_cpu() == 0);
 
-  /* Check both cases */
-
-  for (i = 0; i < 2; i++)
+  if (irqreq > 0)
     {
-      int irqreq = g_irq_to_handle[cpu][i];
-
-      if (irqreq)
-        {
-          /* Clear g_irq_to_handle[cpu][i] */
-
-          g_irq_to_handle[cpu][i] = 0;
-
-          if (0 == i)
-            {
-              up_enable_irq(irqreq);
-            }
-          else
-            {
-              up_disable_irq(irqreq);
-            }
-
-          handled = true;
-
-          break;
-        }
+      up_enable_irq(irqreq);
     }
-
-  return handled;
+  else
+    {
+      up_disable_irq(-irqreq);
+    }
 }
 
 /****************************************************************************
@@ -120,31 +83,54 @@ static bool handle_irqreq(int cpu)
  ****************************************************************************/
 
 /****************************************************************************
- * Name: cxd56_smp_call_handler
+ * Name: rp23xx_cpu_call_handler
  *
  * Description:
  *   This is the handler for SMP_CALL.
  *
+ * Returned Value:
+ *   Should always return OK
+ *
  ****************************************************************************/
 
-int cxd56_smp_call_handler(int irq, void *c, void *arg)
+int rp23xx_cpu_call_handler(int irq, void *c, void *arg)
 {
   int cpu = this_cpu();
-  int ret = OK;
+  int irqreq;
+  uint32_t stat;
 
-  handle_irqreq(cpu);
+  nxsched_cpu_call_handler(irq, c, arg);
 
-  nxsched_smp_call_handler(irq, c, arg);
+  stat = getreg32(RP23XX_SIO_FIFO_ST);
+  if (stat & (RP23XX_SIO_FIFO_ST_ROE | RP23XX_SIO_FIFO_ST_WOF))
+    {
+      /* Clear sticky flag */
+
+      putreg32(0, RP23XX_SIO_FIFO_ST);
+    }
+
+  if (!(stat & RP23XX_SIO_FIFO_ST_VLD))
+    {
+      /* No data received */
+
+      return OK;
+    }
+
+  irqreq = getreg32(RP23XX_SIO_FIFO_RD);
+
+  if (irqreq != 0)
+    {
+      /* Handle IRQ enable/disable request */
+
+      rp23xx_handle_irqreq(irqreq);
+      return OK;
+    }
 
   DPRINTF("cpu%d will be paused\n", cpu);
 
-  /* Clear SW_INT for APP_DSP(cpu) */
-
-  putreg32(0, CXD56_CPU_P2_INT + (4 * cpu));
-
   nxsched_process_delivered(cpu);
 
-  return ret;
+  return OK;
 }
 
 /****************************************************************************
@@ -170,13 +156,18 @@ int up_send_smp_sched(int cpu)
 {
   /* Generate IRQ for CPU(cpu) */
 
-  putreg32(1, CXD56_CPU_P2_INT + (4 * cpu));
+  while (!(getreg32(RP23XX_SIO_FIFO_ST) & RP23XX_SIO_FIFO_ST_RDY))
+    {
+      ;
+    }
+
+  putreg32(0, RP23XX_SIO_FIFO_WR);
 
   return OK;
 }
 
 /****************************************************************************
- * Name: up_send_smp_call
+ * Name: up_send_cpu_call
  *
  * Description:
  *   Send smp call to target cpu.
@@ -189,7 +180,7 @@ int up_send_smp_sched(int cpu)
  *
  ****************************************************************************/
 
-void up_send_smp_call(cpu_set_t cpuset)
+void up_send_cpu_call(cpu_set_t cpuset)
 {
   int cpu;
 
@@ -201,33 +192,30 @@ void up_send_smp_call(cpu_set_t cpuset)
 }
 
 /****************************************************************************
- * Name: up_send_irqreq()
+ * Name: rp23xx_send_irqreq()
  *
  * Description:
- *   Send up_enable_irq() / up_disable_irq() request to the specified cpu
+ *   Send up_enable_irq() / up_disable_irq() request to the Core #0
  *
  *   This function is called from up_enable_irq() or up_disable_irq()
  *   to be handled on specified CPU. Locking protocol in the sequence is
  *   the same as up_pause_cpu() plus up_resume_cpu().
  *
  * Input Parameters:
- *   idx - The request index (0: enable, 1: disable)
- *   irq - The IRQ number to be handled
- *   cpu - The index of the CPU which will handle the request
+ *   irqreq - The IRQ number to be handled (>0 : enable / <0 : disable)
  *
  ****************************************************************************/
 
-void up_send_irqreq(int idx, int irq, int cpu)
+void rp23xx_send_irqreq(int irqreq)
 {
-  DEBUGASSERT(cpu >= 0 && cpu < CONFIG_SMP_NCPUS && cpu != this_cpu());
+  /* Send IRQ number to Core #0 */
 
-  /* Set irq for the cpu */
+  while (!(getreg32(RP23XX_SIO_FIFO_ST) & RP23XX_SIO_FIFO_ST_RDY))
+    {
+      ;
+    }
 
-  g_irq_to_handle[cpu][idx] = irq;
-
-  /* Generate IRQ for CPU(cpu) */
-
-  putreg32(1, CXD56_CPU_P2_INT + (4 * cpu));
+  putreg32(irqreq, RP23XX_SIO_FIFO_WR);
 }
 
 #endif /* CONFIG_SMP */

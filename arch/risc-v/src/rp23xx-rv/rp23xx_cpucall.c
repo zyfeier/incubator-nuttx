@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/armv7-a/arm_smpcall.c
+ * arch/risc-v/src/rp23xx-rv/rp23xx_cpucall.c
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -28,49 +28,108 @@
 
 #include <stdint.h>
 #include <assert.h>
+#include <nuttx/debug.h>
+#include <string.h>
+#include <stdio.h>
 
 #include <nuttx/arch.h>
-#include <nuttx/sched.h>
 #include <nuttx/spinlock.h>
 #include <nuttx/sched_note.h>
 
-#include "arm_internal.h"
-#include "gic.h"
 #include "sched/sched.h"
+#include "riscv_internal.h"
+#include "hardware/rp23xx_sio.h"
 
 #ifdef CONFIG_SMP
 
 /****************************************************************************
- * Private Data
+ * Pre-processor Definitions
  ****************************************************************************/
+
+#if 0
+#define DPRINTF(fmt, args...) llinfo(fmt, ##args)
+#else
+#define DPRINTF(fmt, args...) do {} while (0)
+#endif
+
+/****************************************************************************
+ * Name: rp23xx_handle_irqreq
+ *
+ * Description:
+ *   If an irq handling request is found on cpu, call up_enable_irq() or
+ *   up_disable_irq().
+ *
+ * Input Parameters:
+ *   irqreq - The IRQ number to be handled (>0 : enable / <0 : disable)
+ *
+ ****************************************************************************/
+
+static void rp23xx_handle_irqreq(int irqreq)
+{
+  DEBUGASSERT(this_cpu() == 0);
+
+  if (irqreq > 0)
+    {
+      up_enable_irq(irqreq);
+    }
+  else
+    {
+      up_disable_irq(-irqreq);
+    }
+}
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: arm_smp_sched_handler
+ * Name: riscv_cpu_call_handler
  *
  * Description:
- *   This is the handler for sched.
- *
- *   1. It saves the current task state at the head of the current assigned
- *      task list.
- *   2. It processes g_delivertasks
- *   3. Returns from interrupt, restoring the state of the new task at the
- *      head of the ready to run list.
- *
- * Input Parameters:
- *   Standard interrupt handling
+ *   This is the handler for SMP_CALL.
  *
  * Returned Value:
- *   Zero on success; a negated errno value on failure.
+ *   Should always return OK
  *
  ****************************************************************************/
 
-int arm_smp_sched_handler(int irq, void *context, void *arg)
+int riscv_cpu_call_handler(int irq, void *c, void *arg)
 {
-  nxsched_process_delivered(this_cpu());
+  int cpu = this_cpu();
+  int irqreq;
+  uint32_t stat;
+
+  nxsched_cpu_call_handler(irq, c, arg);
+
+  stat = getreg32(RP23XX_SIO_FIFO_ST);
+  if (stat & (RP23XX_SIO_FIFO_ST_ROE | RP23XX_SIO_FIFO_ST_WOF))
+    {
+      /* Clear sticky flag */
+
+      putreg32(0, RP23XX_SIO_FIFO_ST);
+    }
+
+  if (!(stat & RP23XX_SIO_FIFO_ST_VLD))
+    {
+      /* No data received */
+
+      return OK;
+    }
+
+  irqreq = getreg32(RP23XX_SIO_FIFO_RD);
+
+  if (irqreq != 0)
+    {
+      /* Handle IRQ enable/disable request */
+
+      rp23xx_handle_irqreq(irqreq);
+      return OK;
+    }
+
+  DPRINTF("cpu%d will be paused\n", cpu);
+
+  nxsched_process_delivered(cpu);
+
   return OK;
 }
 
@@ -95,13 +154,20 @@ int arm_smp_sched_handler(int irq, void *context, void *arg)
 
 int up_send_smp_sched(int cpu)
 {
-  arm_cpu_sgi(GIC_SMP_SCHED, (1 << cpu));
+  /* Generate IRQ for CPU(cpu) */
+
+  while (!(getreg32(RP23XX_SIO_FIFO_ST) & RP23XX_SIO_FIFO_ST_RDY))
+    {
+      ;
+    }
+
+  putreg32(0, RP23XX_SIO_FIFO_WR);
 
   return OK;
 }
 
 /****************************************************************************
- * Name: up_send_smp_call
+ * Name: up_send_cpu_call
  *
  * Description:
  *   Send smp call to target cpu.
@@ -114,9 +180,42 @@ int up_send_smp_sched(int cpu)
  *
  ****************************************************************************/
 
-void up_send_smp_call(cpu_set_t cpuset)
+void up_send_cpu_call(cpu_set_t cpuset)
 {
-  up_trigger_irq(GIC_SMP_CALL, cpuset);
+  int cpu;
+
+  for (; cpuset != 0; cpuset &= ~(1 << cpu))
+    {
+      cpu = ffs(cpuset) - 1;
+      up_send_smp_sched(cpu);
+    }
+}
+
+/****************************************************************************
+ * Name: rp23xx_send_irqreq()
+ *
+ * Description:
+ *   Send up_enable_irq() / up_disable_irq() request to the Core #0
+ *
+ *   This function is called from up_enable_irq() or up_disable_irq()
+ *   to be handled on specified CPU. Locking protocol in the sequence is
+ *   the same as up_pause_cpu() plus up_resume_cpu().
+ *
+ * Input Parameters:
+ *   irqreq - The IRQ number to be handled (>0 : enable / <0 : disable)
+ *
+ ****************************************************************************/
+
+void rp23xx_send_irqreq(int irqreq)
+{
+  /* Send IRQ number to Core #0 */
+
+  while (!(getreg32(RP23XX_SIO_FIFO_ST) & RP23XX_SIO_FIFO_ST_RDY))
+    {
+      ;
+    }
+
+  putreg32(irqreq, RP23XX_SIO_FIFO_WR);
 }
 
 #endif /* CONFIG_SMP */

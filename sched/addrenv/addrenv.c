@@ -66,7 +66,7 @@ static spinlock_t g_addrenv_lock = SP_UNLOCKED;
  */
 
 static int addrenv_leave_cpu(FAR void *arg);
-static struct smp_call_data_s g_addrenv_leave_call =
+static struct cpu_call_data_s g_addrenv_leave_call =
 {
   addrenv_leave_cpu
 };
@@ -242,7 +242,7 @@ static void addrenv_wake(FAR struct addrenv_s *addrenv)
 
   if (CPU_COUNT(&cpuset) > 0)
     {
-      nxsched_smp_call_async(cpuset, &g_addrenv_leave_call);
+      nxsched_cpu_call_async(cpuset, &g_addrenv_leave_call);
     }
 }
 

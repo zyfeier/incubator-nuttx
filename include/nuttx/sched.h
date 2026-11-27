@@ -236,7 +236,7 @@
 #  define get_task_name(tcb)         "<noname>"
 #endif
 
-#define SMP_CALL_INITIALIZER(func, arg) {(func), (arg)}
+#define CPU_CALL_INITIALIZER(func, arg) {(func), (arg)}
 
 #define running_regs()               ((FAR void **)(g_running_task->xcp.regs))
 
@@ -879,17 +879,17 @@ begin_packed_struct struct aligned_data(8) tcbinfo_s
 
 typedef CODE void (*nxsched_foreach_t)(FAR struct tcb_s *tcb, FAR void *arg);
 
-/* This is the callback type used by nxsched_smp_call() */
+/* This is the callback type used by nxsched_cpu_call() */
 
-#ifdef CONFIG_SMP
-typedef CODE int (*nxsched_smp_call_t)(FAR void *arg);
+#ifndef CONFIG_UP
+typedef CODE int (*nxsched_cpu_call_t)(FAR void *arg);
 
-struct smp_call_cookie_s;
-struct smp_call_data_s
+struct cpu_call_cookie_s;
+struct cpu_call_data_s
 {
-  nxsched_smp_call_t            func;
+  nxsched_cpu_call_t            func;
   FAR void                     *arg;
-  FAR struct smp_call_cookie_s *cookie;
+  FAR struct cpu_call_cookie_s *cookie;
   sq_entry_t                    node[CONFIG_SMP_NCPUS];
 };
 #endif
@@ -1706,9 +1706,9 @@ void nxsched_dumponexit(void);
 #  define nxsched_dumponexit()
 #endif /* CONFIG_SCHED_DUMP_ON_EXIT */
 
-#ifdef CONFIG_SMP
+#ifndef CONFIG_UP
 /****************************************************************************
- * Name: nxsched_smp_call_handler
+ * Name: nxsched_cpu_call_handler
  *
  * Description:
  *   SMP function call handler
@@ -1723,11 +1723,11 @@ void nxsched_dumponexit(void);
  *
  ****************************************************************************/
 
-int nxsched_smp_call_handler(int irq, FAR void *context,
+int nxsched_cpu_call_handler(int irq, FAR void *context,
                              FAR void *arg);
 
 /****************************************************************************
- * Name: nxsched_smp_call_init
+ * Name: nxsched_cpu_call_init
  *
  * Description:
  *   Init call_data
@@ -1742,11 +1742,11 @@ int nxsched_smp_call_handler(int irq, FAR void *context,
  *
  ****************************************************************************/
 
-void nxsched_smp_call_init(FAR struct smp_call_data_s *data,
-                           nxsched_smp_call_t func, FAR void *arg);
+void nxsched_cpu_call_init(FAR struct cpu_call_data_s *data,
+                           nxsched_cpu_call_t func, FAR void *arg);
 
 /****************************************************************************
- * Name: nxsched_smp_call_single
+ * Name: nxsched_cpu_call_single
  *
  * Description:
  *   Call function on single processor, wait function callback
@@ -1761,11 +1761,11 @@ void nxsched_smp_call_init(FAR struct smp_call_data_s *data,
  *
  ****************************************************************************/
 
-int nxsched_smp_call_single(int cpuid, nxsched_smp_call_t func,
+int nxsched_cpu_call_single(int cpuid, nxsched_cpu_call_t func,
                             FAR void *arg);
 
 /****************************************************************************
- * Name: nxsched_smp_call
+ * Name: nxsched_cpu_call
  *
  * Description:
  *   Call function on multi processors, wait function callback
@@ -1780,11 +1780,11 @@ int nxsched_smp_call_single(int cpuid, nxsched_smp_call_t func,
  *
  ****************************************************************************/
 
-int nxsched_smp_call(cpu_set_t cpuset, nxsched_smp_call_t func,
+int nxsched_cpu_call(cpu_set_t cpuset, nxsched_cpu_call_t func,
                      FAR void *arg);
 
 /****************************************************************************
- * Name: nxsched_smp_call_single_async
+ * Name: nxsched_cpu_call_single_async
  *
  * Description:
  *   Call function on single processor async
@@ -1798,11 +1798,11 @@ int nxsched_smp_call(cpu_set_t cpuset, nxsched_smp_call_t func,
  *
  ****************************************************************************/
 
-int nxsched_smp_call_single_async(int cpuid,
-                                  FAR struct smp_call_data_s *data);
+int nxsched_cpu_call_single_async(int cpuid,
+                                  FAR struct cpu_call_data_s *data);
 
 /****************************************************************************
- * Name: nxsched_smp_call_async
+ * Name: nxsched_cpu_call_async
  *
  * Description:
  *   Call function on multi processors async
@@ -1816,8 +1816,8 @@ int nxsched_smp_call_single_async(int cpuid,
  *
  ****************************************************************************/
 
-int nxsched_smp_call_async(cpu_set_t cpuset,
-                           FAR struct smp_call_data_s *data);
+int nxsched_cpu_call_async(cpu_set_t cpuset,
+                           FAR struct cpu_call_data_s *data);
 #endif
 
 /****************************************************************************

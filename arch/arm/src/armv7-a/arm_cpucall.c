@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/armv7-r/arm_smpcall.c
+ * arch/arm/src/armv7-a/arm_cpucall.c
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -101,7 +101,7 @@ int up_send_smp_sched(int cpu)
 }
 
 /****************************************************************************
- * Name: up_send_smp_call
+ * Name: up_send_cpu_call
  *
  * Description:
  *   Send smp call to target cpu.
@@ -114,9 +114,9 @@ int up_send_smp_sched(int cpu)
  *
  ****************************************************************************/
 
-void up_send_smp_call(cpu_set_t cpuset)
+void up_send_cpu_call(cpu_set_t cpuset)
 {
-  up_trigger_irq(GIC_SMP_CALL, cpuset);
+  up_trigger_irq(GIC_CPU_CALL, cpuset);
 }
 
 #endif /* CONFIG_SMP */

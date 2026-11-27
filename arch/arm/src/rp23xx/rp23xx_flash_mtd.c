@@ -207,7 +207,7 @@ struct smp_isolation_data_s
   volatile spinlock_t cpu_wait;
   volatile spinlock_t cpu_pause;
   volatile spinlock_t cpu_resume;
-  struct smp_call_data_s call_data;
+  struct cpu_call_data_s call_data;
 };
 
 struct smp_isolation_s
@@ -382,9 +382,9 @@ static void enter_smp_isolation(struct smp_isolation_s *const data)
           spin_lock(&cpu_data->cpu_pause);
           spin_unlock(&cpu_data->cpu_resume);
 
-          nxsched_smp_call_init(&cpu_data->call_data, pause_cpu_handler,
+          nxsched_cpu_call_init(&cpu_data->call_data, pause_cpu_handler,
                                 cpu_data);
-          nxsched_smp_call_single_async(other_cpuid, &cpu_data->call_data);
+          nxsched_cpu_call_single_async(other_cpuid, &cpu_data->call_data);
         }
     }
 

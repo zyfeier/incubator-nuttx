@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/sparc/src/s698pm/s698pm_smpcall.c
+ * arch/x86_64/src/intel64/intel64_cpucall.c
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -32,13 +32,16 @@
 #include <string.h>
 #include <stdio.h>
 
+#include <arch/irq.h>
+
 #include <nuttx/arch.h>
 #include <nuttx/spinlock.h>
 #include <nuttx/sched_note.h>
 
 #include "sched/sched.h"
-#include "sparc_internal.h"
-#include "chip.h"
+
+#include "x86_64_internal.h"
+#include "intel64.h"
 
 /****************************************************************************
  * Public Data
@@ -49,28 +52,45 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: s698pm_smp_call_handler
+ * Name: x86_64_cpu_call_handler
  *
  * Description:
  *   This is the handler for SMP_CALL.
  *
  ****************************************************************************/
 
-int s698pm_smp_call_handler(int irq, void *c, void *arg)
+int x86_64_cpu_call_handler(int irq, void *c, void *arg)
 {
-  struct tcb_s *tcb;
+  nxsched_cpu_call_handler(irq, c, arg);
+
+  return OK;
+}
+
+/****************************************************************************
+ * Name: x86_64_smp_sched_handler
+ *
+ * Description:
+ *   This is the handler for smp.
+ *
+ *   1. It saves the current task state at the head of the current assigned
+ *      task list.
+ *   2. It processes g_delivertasks
+ *   3. Returns from interrupt, restoring the state of the new task at the
+ *      head of the ready to run list.
+ *
+ * Input Parameters:
+ *   Standard interrupt handling
+ *
+ * Returned Value:
+ *   Zero on success; a negated errno value on failure.
+ *
+ ****************************************************************************/
+
+int x86_64_smp_sched_handler(int irq, void *c, void *arg)
+{
   int cpu = this_cpu();
 
-  /* Clear IPI (Inter-Processor-Interrupt) */
-
-  putreg32(1 << S698PM_IPI_VECTOR, S698PM_IRQREG_ICLEAR);
-
-  tcb = current_task(cpu);
-  sparc_savestate(tcb->xcp.regs);
-  nxsched_smp_call_handler(irq, c, arg);
   nxsched_process_delivered(cpu);
-  tcb = current_task(cpu);
-  sparc_restorestate(tcb->xcp.regs);
 
   return OK;
 }
@@ -96,18 +116,18 @@ int s698pm_smp_call_handler(int irq, void *c, void *arg)
 
 int up_send_smp_sched(int cpu)
 {
-  uintptr_t regaddr;
+  cpu_set_t cpuset;
 
-  /* Execute Pause IRQ to CPU(cpu) */
+  CPU_ZERO(&cpuset);
+  CPU_SET(cpu, &cpuset);
 
-  regaddr = (uintptr_t)S698PM_IRQREG_P0_FORCE + (4 * cpu);
-  putreg32(1 << S698PM_IPI_VECTOR, regaddr);
+  up_trigger_irq(SMP_IPI_SCHED_IRQ, cpuset);
 
   return OK;
 }
 
 /****************************************************************************
- * Name: up_send_smp_call
+ * Name: up_send_cpu_call
  *
  * Description:
  *   Send smp call to target cpu.
@@ -120,13 +140,7 @@ int up_send_smp_sched(int cpu)
  *
  ****************************************************************************/
 
-void up_send_smp_call(cpu_set_t cpuset)
+void up_send_cpu_call(cpu_set_t cpuset)
 {
-  int cpu;
-
-  for (; cpuset != 0; cpuset &= ~(1 << cpu))
-    {
-      cpu = ffs(cpuset) - 1;
-      up_send_smp_sched(cpu);
-    }
+  up_trigger_irq(SMP_IPI_CALL_IRQ, cpuset);
 }

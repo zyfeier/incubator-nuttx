@@ -158,7 +158,7 @@ static int modify_region(uintptr_t vstart, uintptr_t vend, uintptr_t setmask)
         CPU_SET(cpu, &cpus);
       }
 
-    nxsched_smp_call(cpus, flush_hart, NULL);
+    nxsched_cpu_call(cpus, flush_hart, NULL);
   }
 #else
   UP_ISB();

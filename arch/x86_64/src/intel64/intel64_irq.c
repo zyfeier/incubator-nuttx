@@ -727,7 +727,7 @@ void up_irqinitialize(void)
        */
 
       irq_attach(SMP_IPI_TLBSHOOTDOWN_IRQ, x86_64_tlb_handler, NULL);
-      irq_attach(SMP_IPI_CALL_IRQ, x86_64_smp_call_handler, NULL);
+      irq_attach(SMP_IPI_CALL_IRQ, x86_64_cpu_call_handler, NULL);
       irq_attach(SMP_IPI_SCHED_IRQ, x86_64_smp_sched_handler, NULL);
 #endif
     }

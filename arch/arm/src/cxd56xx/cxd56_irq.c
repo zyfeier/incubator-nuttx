@@ -264,6 +264,7 @@ void up_irqinitialize(void)
 
 #ifdef CONFIG_SMP
   int i;
+
   for (i = 0; i < CXD56_IRQ_NIRQS; i++)
     {
       g_cpu_for_irq[i] = -1;
@@ -413,6 +414,7 @@ void up_disable_irq(int irq)
 #endif
 
       irqstate_t flags = spin_lock_irqsave(&g_cxd56_lock);
+
       irq -= CXD56_IRQ_EXTINT;
       bit  = 1 << (irq & 0x1f);
 
@@ -460,7 +462,7 @@ void up_enable_irq(int irq)
 
       /* EXTINT needs to be handled on CPU0 to avoid deadlock */
 
-      if (irq > CXD56_IRQ_EXTINT && irq != CXD56_IRQ_SMP_CALL && 0 != cpu)
+      if (irq > CXD56_IRQ_EXTINT && irq != CXD56_IRQ_CPU_CALL && 0 != cpu)
         {
           up_send_irqreq(0, irq, 0);
           return;
@@ -468,6 +470,7 @@ void up_enable_irq(int irq)
 #endif
 
       irqstate_t flags = spin_lock_irqsave(&g_cxd56_lock);
+
       irq -= CXD56_IRQ_EXTINT;
       bit  = 1 << (irq & 0x1f);
 
