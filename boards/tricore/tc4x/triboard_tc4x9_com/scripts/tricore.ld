@@ -69,6 +69,8 @@ __ustack_size = CONFIG_IDLETHREAD_STACKSIZE;
 __csa_end     = ORIGIN(dspr) + LENGTH(dspr);
 __csa_begin   = __csa_end - __csa_size;
 __istack      = __csa_begin;
+__USTACK0     = __ustack;
+__ISTACK0     = __istack;
 __ustack      = __istack - __istack_size;
 
 /* Boot stack and single boot CSA in the PSPR, which the startup code uses
@@ -232,6 +234,21 @@ SECTIONS
     _sheap = ABSOLUTE(.);
   } > dspr
 
+  /* Each core's DSPR window holds the same layout: the heap from the
+   * bottom, the idle stack and the interrupt stack below the free CSA
+   * list at the top, the formulas of CPU0 mirrored to the base of the
+   * window of CPU1 at 0x60000000 and of CPU2 at 0x50000000, like the
+   * Infineon linker command file places them.  The release trampoline
+   * and the per-CPU heap initialization compute the same addresses
+   * from CPU0's symbols plus the per-CPU base offset.
+   */
+
+  __USTACK1 = 0x60000000 + (__USTACK0 - 0x70000000);
+  __ISTACK1 = 0x60000000 + (__ISTACK0 - 0x70000000);
+#if CONFIG_NCPUS > 2
+  __USTACK2 = 0x50000000 + (__USTACK0 - 0x70000000);
+  __ISTACK2 = 0x50000000 + (__ISTACK0 - 0x70000000);
+#endif
   _eheap = __ustack - __ustack_size;
 
   .ustack __ustack - __ustack_size (NOLOAD) :

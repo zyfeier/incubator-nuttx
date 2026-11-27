@@ -149,7 +149,6 @@ typedef void (*up_vector_t)(void);
  */
 
 extern uintptr_t        __ustack[];
-#define g_idle_topstack __ustack
 
 /* Address of the saved user stack pointer */
 
@@ -163,6 +162,15 @@ extern uintptr_t        __istack[];
 
 extern uintptr_t        _sheap[]; /* Start of .heap */
 extern uintptr_t        _eheap[]; /* End+1 of .heap */
+
+#ifdef CONFIG_UP
+#  define  g_idle_topstack  ((uintptr_t)__ustack)
+#else
+/* Per-CPU idle stack tops, defined in tricore_getintstack.c
+ */
+
+extern uintptr_t        g_idle_topstack[];
+#endif
 
 #  ifdef CONFIG_PERCPU_SECTION
 extern uintptr_t        _ldata_percpu[]; /* The address where load to .percpu data */

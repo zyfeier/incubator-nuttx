@@ -150,7 +150,8 @@ size_t up_check_intstack(int cpu, size_t check_size)
       check_size = CONFIG_ARCH_INTERRUPTSTACK & ~15;
     }
 
-  return tricore_stack_check((uintptr_t)g_intstackalloc, check_size);
+  return tricore_stack_check((uintptr_t)up_get_intstackbase(cpu),
+                             check_size);
 }
 #endif
 
