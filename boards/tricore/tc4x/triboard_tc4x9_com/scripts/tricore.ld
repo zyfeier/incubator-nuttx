@@ -50,7 +50,14 @@ MEMORY
 {
   pfls (rx!p) : ORIGIN = 0x80000000, LENGTH = 1024K
   dspr (w!xp) : ORIGIN = DSPR_ORIGIN, LENGTH = DSPR_LENGTH
-  dlmu (w!xp) : ORIGIN = 0x90020400, LENGTH = 171K
+
+  /* The 0x8-0x9 cached window is per-CPU on TC4x: a secondary core
+   * accessing it does not reach CPU0's DLMU copy, so the shared kernel
+   * data has to live in the 0xB noncached window that all cores see,
+   * like the vela BSP does.
+   */
+
+  dlmu (w!xp) : ORIGIN = 0xB0020400, LENGTH = 171K
 }
 
 REGION_ALIAS("DATA", dlmu)
@@ -152,6 +159,39 @@ SECTIONS
     KEEP(*(.eh_frame))
   } > pfls
 
+  /* Per-CPU data, one copy in the DSPR of every core at the offset of
+   * CPU0, initialized by each core itself from the flash template.
+   * The per-CPU offset of one CPU window selects the copy of every
+   * core: this_cpu_var() and per_cpu_var_smp() reach the copy of the
+   * running core and of the addressed core through the global windows
+   * with the stock percpu macros.
+   */
+
+#ifdef CONFIG_PERCPU_SECTION
+
+  . = ALIGN(64);
+  _ldata_percpu = LOADADDR(.percpu_data);
+  .percpu_data :
+  {
+    _sdata_percpu = ABSOLUTE(.);
+    *(.data..percpu)
+    . = ALIGN(8);
+    _edata_percpu = ABSOLUTE(.);
+  } > dspr AT > pfls
+
+  .percpu_bss (NOLOAD) :
+  {
+    _sbss_percpu = ABSOLUTE(.);
+    *(.bss..percpu)
+    . = ALIGN(64);
+    _ebss_percpu = ABSOLUTE(.);
+  } > dspr
+
+  _percpu_size = _ebss_percpu - _sdata_percpu;
+  _percpu_offset = -0x10000000;
+
+#endif
+
   /* Initialized data, small data (A0) first, copied from flash at startup */
 
   .data :
@@ -182,7 +222,11 @@ SECTIONS
   __a0_mem = _sdata + 32K;
   __a9_mem = __a0_mem;
 
+#ifdef CONFIG_PERCPU_SECTION
+  .heap (DSPR_ORIGIN + _percpu_size) (NOLOAD) :
+#else
   .heap (NOLOAD) :
+#endif
   {
     . = ALIGN(8);
     _sheap = ABSOLUTE(.);
